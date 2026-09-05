@@ -54,6 +54,8 @@ Studio also has **Setup** in the header and **Setup and install packages** on th
 
 Drop a PNG/JPEG/WebP, pick a file, or assign a project texture. **Generate** uploads to Tripo, polls the task, and writes a timestamped folder under `Assets/TripoModels/`.
 
+Image to 3D always uses **v3.1-20260211**, **PBR off**, and **texture quality detailed**.
+
 Parameters (foldout): model, face limit, texture quality, PBR, real-world size, image autofix, place-in-scene, Tripo FBX convert, auto-rig after generate.
 
 ### Text to 3D
@@ -114,12 +116,12 @@ Job payload includes `"provider": "grok"` or `"chatgpt"`.
 
 Tripo models exposed in the UI:
 
-- `P1-20260311` (default)
+- `v3.1-20260211` (default / Image to 3D always)
+- `P1-20260311`
 - `P2-20260801` (quads on)
-- `v3.1-20260211`
 - `v3.0-20250812`
 
-Texture quality: `standard` / `detailed` / `extreme`.
+Texture quality: `standard` / `detailed` (default) / `extreme`. Image to 3D uses **detailed** and leaves PBR off.
 
 API base: `https://openapi.tripo3d.ai/v3`. Endpoints used:
 

@@ -115,8 +115,8 @@ namespace Tripo3D.Editor
         public string Model = TripoSettings.DefaultModel;
         public int FaceLimit = 5000;
         public bool Texture = true;
-        public bool Pbr = true;
-        public string TextureQuality = "standard";
+        public bool Pbr;
+        public string TextureQuality = "detailed";
         public bool AutoSize = true;
         public bool EnableImageAutofix = true;
         public bool Quad;

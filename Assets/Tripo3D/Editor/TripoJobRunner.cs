@@ -82,6 +82,10 @@ namespace Tripo3D.Editor
 
         public static async void RunImageToModel(string imagePath, byte[] imageBytes, TripoGenerateOptions options)
         {
+            options = options ?? new TripoGenerateOptions();
+            options.Model = TripoSettings.BestModel;
+            options.Pbr = false;
+            options.TextureQuality = "detailed";
             await Run(TripoJobKind.ImageToModel, DisplayName(imagePath, options), async (record, ct) =>
             {
                 Set("Uploading image...", 5f, TripoJobState.Uploading, record);

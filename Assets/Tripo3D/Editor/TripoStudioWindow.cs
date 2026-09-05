@@ -803,7 +803,17 @@ namespace Tripo3D.Editor
             }
 
             var options = ReadOptions();
+            options.Model = TripoSettings.BestModel;
+            options.Pbr = false;
+            options.TextureQuality = "detailed";
             options.OutputName = Path.GetFileNameWithoutExtension(_imagePath);
+            if (_modelField != null)
+                _modelField.SetValueWithoutNotify(TripoSettings.BestModel);
+            if (_pbrToggle != null)
+                _pbrToggle.SetValueWithoutNotify(false);
+            if (_qualityField != null)
+                _qualityField.SetValueWithoutNotify("detailed");
+            TripoSettings.ApplyImageTo3dDefaults();
             TripoJobRunner.RunImageToModel(_imagePath, _imageBytes, options);
             RefreshJobUi();
         }

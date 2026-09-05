@@ -209,7 +209,7 @@ namespace Tripo3D.Editor
         {
             options = options ?? new TripoGenerateOptions();
             var model = string.IsNullOrEmpty(options.Model) ? TripoSettings.DefaultModel : options.Model;
-            var quality = string.IsNullOrEmpty(options.TextureQuality) ? "standard" : options.TextureQuality;
+            var quality = string.IsNullOrEmpty(options.TextureQuality) ? "detailed" : options.TextureQuality;
 
             if (includePrompt)
             {

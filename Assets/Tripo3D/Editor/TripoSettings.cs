@@ -8,7 +8,8 @@ namespace Tripo3D.Editor
     [InitializeOnLoad]
     internal static class TripoSettings
     {
-        public const string DefaultModel = "P1-20260311";
+        public const string DefaultModel = "v3.1-20260211";
+        public const string BestModel = "v3.1-20260211";
 
         const string PrefsApiKey = "Tripo3D.ApiKey";
         const string PrefsModel = "Tripo3D.Model";
@@ -27,12 +28,13 @@ namespace Tripo3D.Editor
         const string PrefsAiProvider = "Tripo3D.AiProvider";
         const string PrefsGrokPath = "Tripo3D.GrokPath";
         const string PrefsCodexPath = "Tripo3D.CodexPath";
+        const string PrefsGenDefaults = "Tripo3D.GenDefaultsV2";
 
         public static readonly string[] Models =
         {
+            "v3.1-20260211",
             "P1-20260311",
             "P2-20260801",
-            "v3.1-20260211",
             "v3.0-20250812"
         };
 
@@ -46,6 +48,15 @@ namespace Tripo3D.Editor
         static TripoSettings()
         {
             LoadApiKeyFromDiskIfEmpty();
+            ApplyImageTo3dDefaults();
+        }
+
+        public static void ApplyImageTo3dDefaults()
+        {
+            Model = BestModel;
+            Pbr = false;
+            TextureQuality = "detailed";
+            EditorPrefs.SetInt(PrefsGenDefaults, 2);
         }
 
         public static string ApiKey
@@ -74,14 +85,14 @@ namespace Tripo3D.Editor
 
         public static bool Pbr
         {
-            get => EditorPrefs.GetBool(PrefsPbr, true);
+            get => EditorPrefs.GetBool(PrefsPbr, false);
             set => EditorPrefs.SetBool(PrefsPbr, value);
         }
 
         public static string TextureQuality
         {
-            get => EditorPrefs.GetString(PrefsTextureQuality, "standard");
-            set => EditorPrefs.SetString(PrefsTextureQuality, string.IsNullOrEmpty(value) ? "standard" : value);
+            get => EditorPrefs.GetString(PrefsTextureQuality, "detailed");
+            set => EditorPrefs.SetString(PrefsTextureQuality, string.IsNullOrEmpty(value) ? "detailed" : value);
         }
 
         public static bool AutoSize
