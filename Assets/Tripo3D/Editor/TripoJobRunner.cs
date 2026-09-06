@@ -36,6 +36,15 @@ namespace Tripo3D.Editor
             Persist();
             return record;
         }
+
+        public void Clear()
+        {
+            if (jobs == null)
+                jobs = new List<TripoJobRecord>();
+            else
+                jobs.Clear();
+            Persist();
+        }
     }
 
     internal static class TripoJobRunner
@@ -946,6 +955,36 @@ namespace Tripo3D.Editor
             {
                 Debug.LogWarning("[Tripo3D] Could not check credit balance: " + ex.Message);
             }
+        }
+
+        public static void ClearJobs()
+        {
+            TripoSession.instance.Clear();
+            ClearActive();
+            StatusMessage = "Jobs cleared.";
+            Progress = 0;
+            try
+            {
+                var dir = TripoAiBridge.JobsDir;
+                if (Directory.Exists(dir))
+                {
+                    var files = Directory.GetFiles(dir);
+                    for (var i = 0; i < files.Length; i++)
+                        File.Delete(files[i]);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[Tripo3D] Could not clear Temp/tripo-ai-jobs: " + ex.Message);
+            }
+
+            Notify();
+        }
+
+        [MenuItem("Tripo 3D/Clear Jobs", false, 2)]
+        static void ClearJobsMenu()
+        {
+            ClearJobs();
         }
 
         public static void ReconcileOpenJobs()

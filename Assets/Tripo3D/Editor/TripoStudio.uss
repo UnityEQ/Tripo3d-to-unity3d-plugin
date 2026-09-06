@@ -192,6 +192,16 @@
     color: #c7b0ac;
 }
 
+.btn-row {
+    flex-direction: row;
+    margin-top: 6px;
+}
+
+.btn-row > .secondary-btn {
+    margin-top: 0;
+    margin-right: 6px;
+}
+
 .secondary-btn {
     height: 28px;
     margin-top: 6px;

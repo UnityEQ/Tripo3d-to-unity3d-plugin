@@ -89,7 +89,7 @@ Sends a GLB (last generated, or a file you pick) to the selected AI agent. The a
 
 ### Jobs
 
-Recent generate, props, and rig jobs. Each row shows status, kind, the Tripo model id when it was a generate job (`P1-20260311`, …), and the **project** asset path. **Select** pings that asset.
+Recent generate, props, and rig jobs. Each row shows status, kind, the Tripo model id when it was a generate job (`P1-20260311`, …), and the **project** asset path. **Select** pings that asset. **Refresh job status** re-reads open jobs; **Clear jobs** empties the list (and `Temp/tripo-ai-jobs/`) without deleting imported models.
 
 Jobs that used to store a disk path outside the project (for example `Downloads/dwarf.glb`) are resolved to `Assets/TripoModels/…` when a matching FBX or GLB exists (FBX preferred). Opening the Jobs tab rewrites those references.
 

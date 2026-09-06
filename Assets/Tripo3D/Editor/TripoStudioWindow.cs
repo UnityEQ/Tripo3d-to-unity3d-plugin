@@ -487,13 +487,25 @@ namespace Tripo3D.Editor
             var hint = new Label("Each job links to the imported Unity model (FBX if the rig exists, otherwise GLB). Status refreshes here: credit errors, AI rig queues, and stuck jobs get updated.");
             hint.AddToClassList("hint");
             card.Add(hint);
+            var actions = new VisualElement();
+            actions.AddToClassList("btn-row");
             var refreshJobs = new Button(() =>
             {
                 TripoJobRunner.ReconcileOpenJobs();
                 RebuildJobs();
             }) { text = "Refresh job status" };
             refreshJobs.AddToClassList("secondary-btn");
-            card.Add(refreshJobs);
+            var clearJobs = new Button(() =>
+            {
+                if (!EditorUtility.DisplayDialog("Clear jobs", "Remove all jobs from this list? Imported models stay in the project.", "Clear", "Cancel"))
+                    return;
+                TripoJobRunner.ClearJobs();
+                RebuildJobs();
+            }) { text = "Clear jobs" };
+            clearJobs.AddToClassList("secondary-btn");
+            actions.Add(refreshJobs);
+            actions.Add(clearJobs);
+            card.Add(actions);
             _jobsList = new VisualElement();
             card.Add(_jobsList);
             page.Add(card);
