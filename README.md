@@ -95,6 +95,8 @@ Recent generate, props, and rig jobs. Each row shows status, kind, the Tripo mod
 
 Jobs that used to store a disk path outside the project (for example `Downloads/dwarf.glb`) are resolved to `Assets/TripoModels/…` when a matching FBX or GLB exists (FBX preferred). Opening the Jobs tab rewrites those references.
 
+If image/text generation remains at an old percentage after a script reload, **Refresh job status** resumes the saved Tripo task and downloads its existing result. Recovery also runs after editor reload; it never creates another generation. Older jobs lack saved optional import settings, so recovery imports the GLB into the project without paid FBX conversion, automatic rigging, or adding another scene object. Generation percentage is Tripo's stage progress; overall job progress reserves the final portion for download/import.
+
 ### Settings
 
 Project setup button, **Tripo3D API Key**, output folder, Blender path, AI agent, optional Grok/Codex executables. The key is never written under `Assets/`.

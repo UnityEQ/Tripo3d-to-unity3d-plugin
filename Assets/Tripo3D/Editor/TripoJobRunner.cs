@@ -447,7 +447,7 @@ namespace Tripo3D.Editor
                 var status = (task.status ?? string.Empty).ToLowerInvariant();
                 var progress = Mathf.Clamp(task.progress, 0, 100);
                 var mapped = 15f + progress * 0.7f;
-                await OnMain(() => Set("Generating... " + status + " " + progress + "%", mapped, TripoJobState.Running, record));
+                await OnMain(() => Set("Tripo generation: " + status + " " + progress + "% (overall " + Mathf.RoundToInt(mapped) + "%; download/import follows)", mapped, TripoJobState.Running, record));
 
                 if (TripoJson.IsCreditFailure(task.error_code, task.error_message))
                     throw TripoJson.ToException(task.error_code, task.error_message, null);
@@ -995,6 +995,75 @@ namespace Tripo3D.Editor
             ReconcileOpenJobs();
         }
 
+        [InitializeOnLoadMethod]
+        static void ResumeAfterReload()
+        {
+            EditorApplication.delayCall += ReconcileAfterImport;
+        }
+
+        static void ReconcileAfterImport()
+        {
+            if (EditorApplication.isCompiling || EditorApplication.isUpdating)
+            {
+                EditorApplication.delayCall += ReconcileAfterImport;
+                return;
+            }
+            ReconcileOpenJobs();
+        }
+
+        // Resume existing server tasks only: never submit another paid generation.
+        static async void RecoverInterruptedGenerations()
+        {
+            if (_busy || EditorApplication.isCompiling || EditorApplication.isUpdating || !TripoSettings.HasApiKey)
+                return;
+            var pending = TripoSession.instance.jobs.FindAll(job =>
+                !IsTerminal(job.status) && !string.IsNullOrEmpty(job.taskId) &&
+                (job.kind == TripoJobKind.ImageToModel.ToString() ||
+                 job.kind == TripoJobKind.TextToModel.ToString()));
+            if (pending.Count == 0)
+                return;
+            _busy = true;
+            _cts = new CancellationTokenSource();
+            TripoApiClient.UseKey(TripoSettings.ApiKey);
+            try
+            {
+                foreach (var record in pending)
+                {
+                    if (_cts.IsCancellationRequested)
+                        break;
+                    try
+                    {
+                        var task = await PollAsync(record.taskId, record, _cts.Token);
+                        // Old jobs did not persist optional import choices. Recover the
+                        // GLB without new conversion charges or duplicate scene objects.
+                        await ImportAsync(task, record, new TripoGenerateOptions
+                        {
+                            Model = record.model, PlaceInScene = false,
+                            ConvertToFbx = false, RigInBlender = false
+                        }, _cts.Token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        Set("Recovery paused; Refresh Job Status to resume the existing task.", record.progress, TripoJobState.Queued, record);
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        Fail(record, "Recovery failed for existing task " + record.taskId + ": " + ex.Message);
+                    }
+                }
+            }
+            finally
+            {
+                _cts.Dispose();
+                _cts = null;
+                _busy = false;
+                ClearActive();
+                TripoSession.instance.Persist();
+                Notify();
+            }
+        }
+
         public static void ReconcileOpenJobs()
         {
             var jobs = TripoSession.instance.jobs;
@@ -1014,6 +1083,7 @@ namespace Tripo3D.Editor
             }
 
             EnsureWatch();
+            RecoverInterruptedGenerations();
         }
 
         static void EnsureWatch()
@@ -1098,7 +1168,7 @@ namespace Tripo3D.Editor
             }
 
             var fileStatus = ReadAiJobStatus(fileId);
-            if (fileStatus == "done" || fileStatus == "success" || BlenderOutputsComplete(fileId))
+            if (fileStatus == "done" || fileStatus == "success")
             {
                 MarkAiJobDone(fileId);
                 TryAttachRiggedAsset(job);
