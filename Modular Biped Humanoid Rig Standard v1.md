@@ -192,9 +192,21 @@ After the skeleton and bone weights are committed, author these four Actions on 
 | `Idle` | Yes | 60 frames (2.0s) | Breathing, weight shift, slight head/arm motion. In-place. First and last pose match. |
 | `Run` | Yes | 24–30 frames | Full-body run cycle, opposite arm/leg, hip bounce. In-place (no forward travel). First and last pose match. |
 | `Jump` | No | 30–45 frames | Crouch → takeoff → hang → land, recover toward Idle. Vertical motion on Hips/Root only. |
-| `SwordSlash` | No | 24–36 frames | One-handed slash with **Hand.R** as if gripping a one-handed sword: wind-up, slash across, follow-through, recover. Do not create a sword mesh unless one already exists. Right-hand fingers in a grip. |
+| `SwordSlash` | No | 24–36 frames | One-handed slash with **Hand.R** as if gripping a one-handed sword. Wind-up high-right / rear-right (clear of head and back), slash in an arc **in front of the chest**, follow-through to the left-front, recover. Do not create a sword mesh unless one already exists. Right-hand fingers in a grip. The arm must not travel through the torso. |
 
 Keep rest skeleton and weights unchanged while authoring clips. See **Animation-bake failure to prevent: reversed knee poles** below.
+
+### 5c. No self-intersection in clips
+
+Animated appendages must stay outside this character's own mesh. Do not accept a clip in which an arm, elbow, hand, weapon, leg, knee, or foot passes through the torso, pelvis, head, or the opposite limb.
+
+- Evaluate the **deformed mesh**, not only bone dots. Scrub every frame in solid/material view.
+- Light contact (a hand brushing a hip on Idle, feet on the ground) is allowed. Volume penetration is not.
+- **`SwordSlash` failure to prevent:** a straight cut that drives `UpperArm.R` / `Forearm.R` / `Hand.R` through the belly or chest. Keep the elbow outside the ribcage. Rotate `Chest` and `Hips` with the swing so the arm can stay in front. Place the slash plane in front of the body; never through it. The left arm counterbalances outside the torso, not through it.
+- **`Run` / `Jump`:** knees and feet must not enter the opposite thigh or the pelvis; arms must not clip the torso on the pass.
+- If a pose only works by clipping, change the arc, timing, or torso rotation. Do not ship the penetrating pose.
+
+Report any remaining intersections in the validation notes.
 
 ### 6. Validate
 
@@ -207,6 +219,7 @@ Run the following checks before calling the rig complete:
 - Skinning: no unweighted vertices, normalized sums, influence budget, valid bone references, matching seam weights, no unintended remote influence.
 - Geometry: inspect physical connectivity and intended separate parts without changing topology solely to satisfy a count.
 - Poses: elbows and knees at representative bends; shoulders raised/lowered; hip stride/crouch; torso twist; head turn; wrist bends; individual digits and combined finger curls; thumbs; ankle/toe bends.
+- Clip self-intersection: no limb-through-torso or limb-through-limb on Idle, Run, Jump, or SwordSlash. Scrub SwordSlash in particular for the right arm entering the chest or belly.
 - IK: no stretch, targets track, pole directions are stable, and rest switching does not visibly jump.
 - Inspect front, back, side, and close hand views. Check for spikes, tears, collapsed joints, unintended pulls, and unacceptable intersections.
 - Measure local edge deformation as a diagnostic, including absolute changes and edge lengths. Do not treat all expected joint-surface stretching as a bug or dismiss a visible defect because a percentile is low.
@@ -232,7 +245,7 @@ Preserve Unity `.meta` GUIDs when replacing project files. Verify Humanoid mappi
 
 ## Reuse prompt
 
-"Read the Modular Biped Humanoid Rig Standard v1 and its reference JSON. Rig this character using biped_humanoid_v1: identical core names and hierarchy, calibrated matrix transforms, modular anatomy fitting, full fingers, verified skin weights, then author Idle, Run, Jump, and SwordSlash, and a baked skinned export with those clips. Preserve the working Blender rig and report validation results."
+"Read the Modular Biped Humanoid Rig Standard v1 and its reference JSON. Rig this character using biped_humanoid_v1: identical core names and hierarchy, calibrated matrix transforms, modular anatomy fitting, full fingers, verified skin weights, then author Idle, Run, Jump, and SwordSlash with no limb-through-body mesh penetration, and a baked skinned export with those clips. Preserve the working Blender rig and report validation results."
 
 
 ## Animation-bake failure to prevent: reversed knee poles

@@ -51,15 +51,41 @@ namespace Tripo3D.Editor
                 throw new TripoException("Could not parse Tripo API response.");
 
             if (response.code != 0)
-            {
-                var message = string.IsNullOrEmpty(response.message) ? "Tripo API error " + response.code : response.message;
-                throw new TripoException(message, response.code, response.suggestion);
-            }
+                throw ToException(response.code, response.message, response.suggestion);
 
             if (response.data == null)
                 throw new TripoException("Tripo API returned no data.");
 
             return response;
+        }
+
+        public static TripoException ToException(int code, string message, string suggestion)
+        {
+            if (IsCreditFailure(code, message))
+            {
+                var text = "Out of Tripo credits. Top up at platform.tripo3d.ai.";
+                if (!string.IsNullOrEmpty(message) && message.IndexOf("credit", StringComparison.OrdinalIgnoreCase) < 0)
+                    text = message + " " + text;
+                if (!string.IsNullOrEmpty(suggestion))
+                    return new TripoException(text, code, suggestion);
+                return new TripoException(text, code, "Add credits, then click Generate again.");
+            }
+
+            var fallback = string.IsNullOrEmpty(message) ? "Tripo API error " + code : message;
+            return new TripoException(fallback, code, suggestion);
+        }
+
+        public static bool IsCreditFailure(int code, string message)
+        {
+            if (code == 2010)
+                return true;
+            if (string.IsNullOrEmpty(message))
+                return false;
+            var m = message.ToLowerInvariant();
+            return m.Contains("insufficient") && (m.Contains("credit") || m.Contains("token") || m.Contains("balance"))
+                   || m.Contains("out of credit")
+                   || m.Contains("no credit")
+                   || m.Contains("not enough credit");
         }
 
         static void Write(StringBuilder sb, object value)

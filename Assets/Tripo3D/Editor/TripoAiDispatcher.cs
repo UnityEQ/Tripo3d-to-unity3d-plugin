@@ -200,7 +200,7 @@ namespace Tripo3D.Editor
                 + "Read and follow:\n"
                 + "- " + promptPath + "\n"
                 + "- " + jobJsonPath + "\n\n"
-                + "Drive Blender (MCP execute_blender_code and/or headless blender.exe) through inventory, skeleton, bone weights, then author Idle / Run / Jump / SwordSlash, then validate and Unity FBX export with those clips. Specs are listed in the prompt file.";
+                + "Drive Blender (MCP execute_blender_code and/or headless blender.exe) through inventory, skeleton, bone weights, then author Idle / Run / Jump / SwordSlash with no self-intersection (arms/legs must not pass through the torso or each other; SwordSlash arcs in front of the chest, not through it), then validate and Unity FBX export with those clips. Specs are listed in the prompt file.";
         }
 
         public static string FindGrok()

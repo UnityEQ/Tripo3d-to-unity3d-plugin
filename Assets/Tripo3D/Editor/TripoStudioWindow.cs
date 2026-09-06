@@ -100,6 +100,7 @@ namespace Tripo3D.Editor
         void OnEnable()
         {
             TripoJobRunner.Changed += OnJobChanged;
+            EditorApplication.delayCall += TripoJobRunner.ReconcileOpenJobs;
         }
 
         void OnDisable()
@@ -169,7 +170,7 @@ namespace Tripo3D.Editor
             {
                 Tab(tabs, "Image to 3D", Page.Image),
                 Tab(tabs, "Text to 3D", Page.Text),
-                Tab(tabs, "Multiview", Page.Multiview),
+                Tab(tabs, "Armor", Page.Multiview),
                 Tab(tabs, "Blender Rig", Page.Blender),
                 Tab(tabs, "Jobs", Page.Jobs),
                 Tab(tabs, "Settings", Page.Settings)
@@ -209,6 +210,7 @@ namespace Tripo3D.Editor
             row.AddToClassList("row");
 
             var upload = Card("Image Upload");
+            upload.AddToClassList("image-col");
             var hint = new Label("Drop a PNG/JPEG, pick a file, or assign a project texture. Subject should be clearly visible.");
             hint.AddToClassList("hint");
             upload.Add(hint);
@@ -220,6 +222,7 @@ namespace Tripo3D.Editor
             drop.RegisterCallback<DragPerformEvent>(OnDragPerform);
 
             _imageView = new Image();
+            _imageView.scaleMode = ScaleMode.ScaleToFit;
             _imageView.AddToClassList("preview");
             drop.Add(_imageView);
             upload.Add(drop);
@@ -246,28 +249,33 @@ namespace Tripo3D.Editor
             upload.Add(pickRow);
 
             var generate = Card("Image to 3D");
-            generate.Add(BuildCommonOptions());
+            generate.AddToClassList("image-col");
+            generate.AddToClassList("image-col--last");
+            var generateBody = new ScrollView();
+            generateBody.AddToClassList("image-col-scroll");
+            generateBody.Add(BuildCommonOptions());
 
             _generateButton = new Button(GenerateFromImage) { text = "Generate" };
             _generateButton.AddToClassList("generate-btn");
-            generate.Add(_generateButton);
+            generateBody.Add(_generateButton);
 
             _progress = new ProgressBar { title = "Progress", value = 0 };
             _progress.AddToClassList("progress");
             _progress.style.display = DisplayStyle.None;
-            generate.Add(_progress);
+            generateBody.Add(_progress);
 
             _statusLabel = new Label(TripoJobRunner.StatusMessage);
             _statusLabel.AddToClassList("status");
-            generate.Add(_statusLabel);
+            generateBody.Add(_statusLabel);
 
             _warningLabel = new Label();
             _warningLabel.AddToClassList("warning");
-            generate.Add(_warningLabel);
+            generateBody.Add(_warningLabel);
 
             _resultView = new Image();
+            _resultView.scaleMode = ScaleMode.ScaleToFit;
             _resultView.AddToClassList("result-image");
-            generate.Add(_resultView);
+            generateBody.Add(_resultView);
 
             var actions = new VisualElement { style = { flexDirection = FlexDirection.Row } };
             var select = new Button(SelectLastAsset) { text = "Select Asset" };
@@ -283,12 +291,13 @@ namespace Tripo3D.Editor
             cancel.style.marginLeft = 6;
             _imageRigButton = new Button(RigLastGlb) { text = "Send to " + TripoSettings.AiProviderLabel + " (Blender rig)" };
             _imageRigButton.AddToClassList("generate-btn");
-            generate.Add(_imageRigButton);
+            generateBody.Add(_imageRigButton);
 
             actions.Add(select);
             actions.Add(place);
             actions.Add(cancel);
-            generate.Add(actions);
+            generateBody.Add(actions);
+            generate.Add(generateBody);
 
             row.Add(upload);
             row.Add(generate);
@@ -475,9 +484,16 @@ namespace Tripo3D.Editor
             var page = new VisualElement();
             page.AddToClassList("page");
             var card = Card("Recent Jobs");
-            var hint = new Label("Each job links to the imported Unity model (FBX if the rig exists, otherwise GLB). Select pings that asset in the Project window.");
+            var hint = new Label("Each job links to the imported Unity model (FBX if the rig exists, otherwise GLB). Status refreshes here: credit errors, AI rig queues, and stuck jobs get updated.");
             hint.AddToClassList("hint");
             card.Add(hint);
+            var refreshJobs = new Button(() =>
+            {
+                TripoJobRunner.ReconcileOpenJobs();
+                RebuildJobs();
+            }) { text = "Refresh job status" };
+            refreshJobs.AddToClassList("secondary-btn");
+            card.Add(refreshJobs);
             _jobsList = new VisualElement();
             card.Add(_jobsList);
             page.Add(card);
@@ -718,6 +734,8 @@ namespace Tripo3D.Editor
                 _tabs[i].EnableInClassList("tab--active", i == (int)page);
             if (page == Page.Blender || page == Page.Settings)
                 ApplyProviderLabels();
+            if (page == Page.Jobs)
+                TripoJobRunner.ReconcileOpenJobs();
         }
 
         void PickImage()
@@ -1321,7 +1339,7 @@ namespace Tripo3D.Editor
                 top.AddToClassList("job-top");
                 var name = new Label(job.name);
                 name.AddToClassList("job-name");
-                var metaBits = job.status + "  " + job.progress + "%  " + KindLabel(job.kind);
+                var metaBits = JobStatusLabel(job) + "  " + job.progress + "%  " + KindLabel(job.kind);
                 if (!string.IsNullOrEmpty(job.model))
                     metaBits += "  " + job.model;
                 var meta = new Label(metaBits);
@@ -1329,6 +1347,12 @@ namespace Tripo3D.Editor
                 top.Add(name);
                 top.Add(meta);
                 row.Add(top);
+                if (!string.IsNullOrEmpty(job.message) && job.message != job.error)
+                {
+                    var msg = new Label(job.message);
+                    msg.AddToClassList("status");
+                    row.Add(msg);
+                }
 
                 var path = !string.IsNullOrEmpty(resolved) ? resolved : job.assetPath;
                 var pathLabel = new Label(string.IsNullOrEmpty(path) ? "No model in project" : path);
@@ -1336,6 +1360,12 @@ namespace Tripo3D.Editor
                 if (string.IsNullOrEmpty(path) || AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(path) == null)
                     pathLabel.AddToClassList("job-path--missing");
                 row.Add(pathLabel);
+                if (!string.IsNullOrEmpty(job.error))
+                {
+                    var err = new Label(job.error);
+                    err.AddToClassList("warning");
+                    row.Add(err);
+                }
 
                 if (!string.IsNullOrEmpty(path))
                 {
@@ -1350,6 +1380,26 @@ namespace Tripo3D.Editor
 
             if (persisted)
                 TripoSession.instance.Persist();
+        }
+
+        static string JobStatusLabel(TripoJobRecord job)
+        {
+            if (job == null)
+                return string.Empty;
+            var status = job.status;
+            if (job.kind == "BlenderRig")
+            {
+                if (status == "Failed")
+                    return "Failed";
+                if (status == "Success")
+                    return "Success";
+                if (status == "Running" || status == "Rigging")
+                    return "Rigging";
+                if (status == "Queued" || status == "Creating")
+                    return "Queued";
+            }
+
+            return string.IsNullOrEmpty(status) ? "Unknown" : status;
         }
 
         static string KindLabel(string kind)

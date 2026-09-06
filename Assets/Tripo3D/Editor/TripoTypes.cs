@@ -85,6 +85,7 @@ namespace Tripo3D.Editor
         Idle,
         Uploading,
         Creating,
+        Queued,
         Running,
         Downloading,
         Rigging,
@@ -106,6 +107,7 @@ namespace Tripo3D.Editor
         public string previewPath;
         public string model;
         public string error;
+        public string message;
         public string createdAt;
         public int progress;
     }
