@@ -200,7 +200,7 @@ namespace Tripo3D.Editor
                 + "Read and follow:\n"
                 + "- " + promptPath + "\n"
                 + "- " + jobJsonPath + "\n\n"
-                + "Drive Blender (MCP execute_blender_code and/or headless blender.exe) through inventory, skeleton, bone weights, then author Idle / Run / Jump / SwordSlash with no self-intersection (arms/legs must not pass through the torso or each other; SwordSlash arcs in front of the chest, not through it), then validate and Unity FBX export with those clips. Read the Markdown specs in the prompt file. Do not load Biped Humanoid Rig v1 - Reference.json into the chat — pass its path to Tools/Blender/biped_humanoid_v1/run.py --schema.";
+                + "Drive Blender (MCP execute_blender_code and/or headless blender.exe) through inventory, skeleton, bone weights, then author Idle / Run / Jump / SwordSlash with no self-intersection (arms/legs must not pass through the torso or each other; SwordSlash arcs in front of the chest, not through it). Keep arms in a normal silhouette — hang/pump/slash close to the body; do not splay them wide to avoid clipping. Then validate and Unity FBX export with those clips. Read the Markdown specs in the prompt file. Do not load Biped Humanoid Rig v1 - Reference.json into the chat — pass its path to Tools/Blender/biped_humanoid_v1/run.py --schema.";
         }
 
         public static string FindGrok()

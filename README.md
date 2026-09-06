@@ -87,6 +87,8 @@ Sends a GLB (last generated, or a file you pick) to the selected AI agent. The a
 
 **Inventory last .blend** runs a headless Blender agent op without going through the AI queue.
 
+For reusable commands, helper limitations and efficient checkpoint use, see [Biped helper commands](Tools/Blender/biped_humanoid_v1/README.md) and the **Efficient execution** section of [the rig standard](Modular%20Biped%20Humanoid%20Rig%20Standard%20v1.md).
+
 ### Jobs
 
 Recent generate, props, and rig jobs. Each row shows status, kind, the Tripo model id when it was a generate job (`P1-20260311`, …), and the **project** asset path. **Select** pings that asset. **Refresh job status** re-reads open jobs; **Clear jobs** empties the list (and `Temp/tripo-ai-jobs/`) without deleting imported models.
