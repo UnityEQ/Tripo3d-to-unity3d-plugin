@@ -52,7 +52,7 @@ Studio also has **Setup** in the header and **Setup and install packages** on th
 
 ### Image to 3D
 
-Drop a PNG/JPEG/WebP, pick a file, or assign a project texture. **Generate** uploads to Tripo, polls the task, and writes a timestamped folder under `Assets/TripoModels/`.
+Drop a PNG/JPEG/WebP or click **Add Image**. **Generate** uploads to Tripo, polls the task, and writes a timestamped folder under `Assets/TripoModels/`.
 
 Image to 3D always uses **v3.1-20260211**, **PBR off**, and **texture quality detailed**.
 

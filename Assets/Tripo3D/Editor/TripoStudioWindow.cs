@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using UnityEditor;
-using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -211,7 +210,7 @@ namespace Tripo3D.Editor
 
             var upload = Card("Image Upload");
             upload.AddToClassList("image-col");
-            var hint = new Label("Drop a PNG/JPEG, pick a file, or assign a project texture. Subject should be clearly visible.");
+            var hint = new Label("Drop a PNG/JPEG/WebP, or click Add Image. Subject should be clearly visible.");
             hint.AddToClassList("hint");
             upload.Add(hint);
 
@@ -231,22 +230,9 @@ namespace Tripo3D.Editor
             _fileLabel.AddToClassList("file-name");
             upload.Add(_fileLabel);
 
-            var pickRow = new VisualElement { style = { flexDirection = FlexDirection.Row, marginTop = 6 } };
             var fileBtn = new Button(PickImage) { text = "+ Add Image" };
             fileBtn.AddToClassList("secondary-btn");
-            fileBtn.style.flexGrow = 1;
-            fileBtn.style.marginRight = 6;
-            var texField = new ObjectField { objectType = typeof(Texture2D), allowSceneObjects = false };
-            texField.style.flexGrow = 1;
-            texField.RegisterValueChangedCallback(evt =>
-            {
-                var tex = evt.newValue as Texture2D;
-                if (tex != null)
-                    LoadProjectTexture(tex);
-            });
-            pickRow.Add(fileBtn);
-            pickRow.Add(texField);
-            upload.Add(pickRow);
+            upload.Add(fileBtn);
 
             var generate = Card("Image to 3D");
             generate.AddToClassList("image-col");
@@ -781,37 +767,6 @@ namespace Tripo3D.Editor
             _imagePath = path;
             _imageBytes = File.ReadAllBytes(path);
             ApplyPreview(_imageBytes, Path.GetFileName(path));
-        }
-
-        void LoadProjectTexture(Texture2D texture)
-        {
-            if (texture == null)
-                return;
-            var path = AssetDatabase.GetAssetPath(texture);
-            if (!string.IsNullOrEmpty(path) && File.Exists(path) && IsImagePath(path))
-            {
-                LoadImageFromDisk(Path.GetFullPath(path));
-                return;
-            }
-
-            var copy = new Texture2D(texture.width, texture.height, TextureFormat.RGBA32, false);
-            var rt = RenderTexture.GetTemporary(texture.width, texture.height, 0, RenderTextureFormat.Default, RenderTextureReadWrite.sRGB);
-            Graphics.Blit(texture, rt);
-            var prev = RenderTexture.active;
-            RenderTexture.active = rt;
-            copy.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
-            copy.Apply();
-            RenderTexture.active = prev;
-            RenderTexture.ReleaseTemporary(rt);
-            _imagePath = texture.name + ".png";
-            _imageBytes = copy.EncodeToPNG();
-            ApplyPreview(_imageBytes, texture.name + ".png");
-        }
-
-        static bool IsImagePath(string path)
-        {
-            var ext = Path.GetExtension(path).ToLowerInvariant();
-            return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".webp";
         }
 
         void ApplyPreview(byte[] bytes, string fileName)
