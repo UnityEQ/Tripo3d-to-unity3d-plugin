@@ -366,7 +366,7 @@ namespace Tripo3D.Editor
                     "Tripo Studio",
                     "GLB queued for " + agent + ".\n\n"
                     + dispatch + "\n\n"
-                    + "It will read the spec files and drive Blender (skeleton, bone weights, Idle/Run/Jump/SwordSlash, Unity FBX).\n\n"
+                    + "It is told to open the spec Markdown files first, then drive Blender (skeleton, bone weights, Idle/Run/Jump/SwordSlash, Unity FBX).\n\n"
                     + jobPath,
                     "OK");
             }

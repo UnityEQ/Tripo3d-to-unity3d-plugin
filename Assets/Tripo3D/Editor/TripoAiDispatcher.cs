@@ -195,12 +195,20 @@ namespace Tripo3D.Editor
 
         static string BuildShortPrompt(string jobJsonPath, string promptPath)
         {
+            var root = TripoBlenderRunner.ProjectRoot;
+            var standardMd = Path.Combine(root, "Modular Biped Humanoid Rig Standard v1.md");
+            var fbxMd = Path.Combine(root, "Lychee Model GLB - Blender FBX - Unity.md");
+            var schemaJson = Path.Combine(root, "Biped Humanoid Rig v1 - Reference.json");
             return
                 "Unity Tripo Studio queued a biped_humanoid_v1 rig job. Do this now.\n\n"
-                + "Read and follow:\n"
-                + "- " + promptPath + "\n"
-                + "- " + jobJsonPath + "\n\n"
-                + "Drive Blender (MCP execute_blender_code and/or headless blender.exe) through inventory, skeleton, bone weights, then author Idle / Run / Jump / SwordSlash with no self-intersection (arms/legs must not pass through the torso or each other; SwordSlash arcs in front of the chest, not through it). Keep arms in a normal silhouette — hang/pump/slash close to the body; do not splay them wide to avoid clipping. Then validate and Unity FBX export with those clips. Read the Markdown specs in the prompt file. Do not load Biped Humanoid Rig v1 - Reference.json into the chat — pass its path to Tools/Blender/biped_humanoid_v1/run.py --schema.";
+                + "FIRST ACTION — the user demands you actually open these files with your file-read tool before anything else. Do not skip. Do not work from memory or a prior session. Do not inventory, start Blender, or write code until they are open:\n"
+                + "1. " + promptPath + "\n"
+                + "2. " + jobJsonPath + "\n"
+                + "3. " + standardMd + "  (entire file — the rig + clip contract)\n"
+                + "4. " + fbxMd + "  (entire file — Unity FBX / texture export)\n\n"
+                + "Then follow that prompt file. Drive Blender (MCP execute_blender_code and/or headless blender.exe) through inventory, skeleton, bone weights, then author Idle / Run / Jump / SwordSlash with no self-intersection (arms/legs must not pass through the torso or each other; SwordSlash arcs in front of the chest, not through it). Keep arms in a normal silhouette — hang/pump/slash close to the body; do not splay them wide to avoid clipping. Then validate and Unity FBX export with those clips. Do not load "
+                + schemaJson
+                + " into the chat — pass its path to Tools/Blender/biped_humanoid_v1/run.py --schema.";
         }
 
         public static string FindGrok()

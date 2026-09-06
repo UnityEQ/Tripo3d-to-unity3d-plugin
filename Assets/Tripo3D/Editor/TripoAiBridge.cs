@@ -64,19 +64,27 @@ namespace Tripo3D.Editor
         static string BuildPrompt(string glb, string slug, string outDir)
         {
             var agent = TripoSettings.AiProviderLabel;
+            var root = TripoBlenderRunner.ProjectRoot;
+            var standardMd = Path.Combine(root, "Modular Biped Humanoid Rig Standard v1.md");
+            var fbxMd = Path.Combine(root, "Lychee Model GLB - Blender FBX - Unity.md");
+            var schemaJson = Path.Combine(root, "Biped Humanoid Rig v1 - Reference.json");
             return
                 "# " + agent + " — rig this Tripo GLB in Blender\n\n" +
-                "The Unity editor queued this job. Drive Blender yourself (MCP `execute_blender_code` and/or headless `blender.exe --background --python`). Do not skip the spec files.\n\n" +
+                "The Unity editor queued this job. Drive Blender yourself (MCP `execute_blender_code` and/or headless `blender.exe --background --python`).\n\n" +
+                "## FIRST ACTION — the user demands you open these files now\n\n" +
+                "This is not optional. Do not inventory the mesh, do not start Blender, do not write Python, do not call `run.py`, and do not author clips until you have **opened these files with your file-read tool in this job**. Do not rely on memory, a prior session, a summary, or this prompt's clip recap. The recap is a reminder; the Markdown files are the contract.\n\n" +
+                "Open, in this order:\n" +
+                "1. `" + standardMd + "` — entire file. This is the rig + clip contract (§5b duration and silhouette gates included).\n" +
+                "2. `" + fbxMd + "` — entire file. This is the Unity FBX / texture export contract.\n" +
+                "3. `Tools/Blender/biped_humanoid_v1/README.md` — helper limits.\n\n" +
+                "`" + schemaJson + "` is the numeric schema. **Do not load it into the chat** (~125 KB of matrices). Pass that path to Blender / `run.py --schema`.\n\n" +
+                "After opening the two Markdown specs, set `stage` on the job JSON to a short note that you opened them (e.g. `specs_read`) before you continue.\n\n" +
                 "## Input\n\n" +
                 "- GLB: `" + glb + "`\n" +
                 "- Slug: `" + slug + "`\n" +
                 "- Output folder: `" + outDir + "`\n\n" +
-                "## Specs (required reading)\n\n" +
-                "1. `Modular Biped Humanoid Rig Standard v1.md` — read this.\n" +
-                "2. `Lychee Model GLB - Blender FBX - Unity.md` — read this.\n" +
-                "3. `Biped Humanoid Rig v1 - Reference.json` — **do not load this into the chat** (~125 KB of matrices). The path is `schema` in the job JSON. Pass it to Blender.\n\n" +
                 "Prefer `Tools/Blender/biped_humanoid_v1/run.py --glb GLB --out OUT --slug SLUG --schema SCHEMA` and `agent.py` (`inventory` / `validate` / `export`) over writing new pipeline scripts. Landmark fit and the four clips are still required after the first bind. Keep mesh arrays, `.npy`, matrices and collision-pair dumps on disk; use image tools for visual review, never base64 text. See `Tools/Blender/biped_humanoid_v1/README.md` for helper limits. Do not generate per-job Editor C# importers.\n\n" +
-                "## Do these ops in order\n\n" +
+                "## Then do these ops in order\n\n" +
                 "1. Inventory the mesh (counts, UVs, materials, transforms). Back up if replacing a rig.\n" +
                 "2. Fit anatomical landmarks and build the exact 52-bone export skeleton (names/parents must match the standard). Optional IK controls, FK default.\n" +
                 "3. Skin / bone weights: every vertex weighted, sums ~1, four influences for export, no opposite-limb leak. Heat weights are a first pass only.\n" +

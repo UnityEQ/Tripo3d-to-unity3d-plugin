@@ -706,7 +706,7 @@ namespace Tripo3D.Editor
         static string BlenderExtraText()
         {
             return "Jobs are written to Temp/tripo-ai-jobs/. " + TripoSettings.AiProviderLabel
-                + " is asked to read the spec files, rig, then animate Idle / Run / Jump / SwordSlash, and drive Blender. The prompt is also copied to the clipboard.";
+                + " is told to open Modular Biped Humanoid Rig Standard v1.md and Lychee Model GLB - Blender FBX - Unity.md first, then rig, animate Idle / Run / Jump / SwordSlash, and drive Blender. The prompt is also copied to the clipboard.";
         }
 
         VisualElement Card(string title)
