@@ -29,7 +29,7 @@ Use the existing helpers before creating another pipeline. Their commands and cu
 - Record source, schema, script and parameter hashes plus Blender/Unity versions beside each checkpoint. Reuse a stage only when its inputs match and its recorded checks passed. This is an execution convention, not an automatic cache implemented by the current helpers.
 - Repair the earliest failing stage. A clip-only change needs that clip's motion checks and a refreshed final export/Unity check; it does not need another heat bind. Changes to mesh, rest skeleton or weights invalidate all dependent animation and export checks. Material changes require appearance/import checks.
 - Keep full logs, matrices, mesh arrays and collision pairs on disk. Return a compact status, failed check/count, affected clip/time and report paths. Read detailed output only for the current failure. Display images through image tools, never as base64 text.
-- Review clips in playback/contact sheets and inspect failed intervals closely. Avoid sending dozens of near-identical full-resolution frames individually. Preserve the complete motion review and numerical checks below, including natural arm posture; clearance alone does not establish animation quality.
+- Review clips in playback and a short contact sheet of the **authored extremes**, not dozens of near-identical full-resolution frames. Preserve the complete motion review and numerical checks below, including natural arm posture; clearance alone does not establish animation quality.
 - Run final checks against the actual latest exported FBX and Unity Humanoid deformation. Key reports to that artifact's hash, not just its filename. Sampling can detect penetration but cannot prove continuous collision freedom.
 - Keep the queued job's status and stage current using the job prompt's lifecycle contract. Claim completion only after all required stages pass. An existing output or an old successful report is insufficient.
 
@@ -199,20 +199,191 @@ Perform animation baking on an export duplicate. Preserve the original controls 
 
 ### 5b. Default gameplay clips (required for Tripo Studio rig jobs)
 
-After the skeleton and bone weights are committed, author these four Actions on the export skeleton before validate/export. Scene rate 30 fps. Clip duration is `(end_frame - start_frame) / fps`: a 2-second Idle starting at frame 1 ends at frame 61, including the matching loop endpoint. Bake IK/constraints to FK deform bones. Clip names are exact. Do not export `CTRL_*` or `WGT_*`.
-
-| Action | Loop | Length | Notes |
-|---|---|---|---|
-| `Idle` | Yes | 60 frames (2.0s) | Breathing, weight shift, slight head/arm motion. In-place. First and last pose match. Arms hang relaxed at the sides (soft elbow bend, hands near the hips), not held out. |
-| `Run` | Yes | 24–30 frames | Full-body run cycle, opposite arm/leg, hip bounce. In-place (no forward travel). First and last pose match. Arms pump close to the torso like a real run, not a wide A-pose. |
-| `Jump` | No | 30–45 frames | Crouch → takeoff → hang → land, recover toward Idle. Vertical motion on Hips/Root only. Arms stay near the body as counterbalance, not stuck out to the sides. |
-| `SwordSlash` | No | 24–36 frames | One-handed slash with **Hand.R** as if gripping a one-handed sword. Wind-up high-right / rear-right (clear of head and back), slash in an arc **in front of** the chest, follow-through to the left-front, recover. Do not create a sword mesh unless one already exists. Right-hand fingers in a grip. The arm must not travel through the torso. Keep the right elbow on a natural slash path, not flared wide. |
+After the skeleton and bone weights are committed, author these four Actions on the export skeleton before validate/export. Scene rate **30 fps**. Clip duration is `(end_frame - start_frame) / fps`: a 2-second Idle starting at frame 1 ends at frame 61, including the matching loop endpoint. Bake IK/constraints to FK deform bones. Clip names are exact. Do not export `CTRL_*` or `WGT_*`.
 
 Keep rest skeleton and weights unchanged while authoring clips. See **Animation-bake failure to prevent: reversed knee poles** below.
 
+| Action | Loop | Length | Notes |
+|---|---|---|---|
+| `Idle` | Yes | 60 frames (2.0s) | Living stand. Breathing + small weight shift. In-place. First and last pose **and velocities** match. Arms hang relaxed at the sides (soft elbow, hands near the hips), not held out. |
+| `Run` | Yes | 24–30 frames | Full two-step run cycle with a flight phase. Opposite arm/leg, hip bounce. In-place (no forward travel). First and last pose **and velocities** match. Arms pump close to the torso. |
+| `Jump` | No | 30–45 frames | Crouch → takeoff → hang → land → recover toward Idle. Vertical motion on Hips/Root only. Arms stay near the body as counterbalance. |
+| `SwordSlash` | No | 24–36 frames | One-handed slash with **Hand.R** as if gripping a one-handed sword. Wind-up high-right / rear-right, slash in an arc **in front of** the chest, follow-through to the left-front, recover. No sword mesh unless one already exists. Right-hand fingers in a grip. |
+
+#### Authoring contract (browser / game-efficient, AAA body mechanics)
+
+Goal: mocap-like weight and silhouette from a **small set of posed extremes**, not a key on every bone every frame. Interpolation carries the inbetweens. Dense 30-fps baking of every controller is a failure mode for this job.
+
+**Keyframe budget (authored poses, not baked samples)**
+
+- Block in **stepped** extremes first, then convert to spline. Do not start in spline and “feel around.”
+- Key only bones that change that pose. Do not key the whole armature on every extreme.
+- Fingers: 2–3 poses per clip (rest / grip / release), held. No per-frame finger noise.
+- Prefer **breakdowns** (passing / hang / mid-slash) over extra inbetweens. If a motion already arcs correctly, stop.
+- After spline, add overlap only where it reads: shoulders after chest, forearms after upper arms, hands after forearms, head after neck, toes after foot.
+- Final bake may sample 30 fps for export. The **authored** animation must remain sparse. If a clip needs more than about **8–12 unique full-body poses**, it is over-keyed; simplify timing, not the silhouette.
+
+**Shared body rules (all four clips)**
+
+- Calibration pose is the fitted shallow A-pose rest. Gameplay clips must **leave** that rest: upper arms near the ribs, elbows softly bent, hands close to the hips or on a real path. A T-pose, scarecrow, or wide A-pose is a failed clip even if nothing intersects.
+- Keep deforming bone twists short. Use the smallest swing that aims local +Y along the limb. No 160°+ thigh/arm rolls (see knee-pole note).
+- Hips lead weight. Shoulders counter-rotate the ribcage. Head follows late and less than the chest.
+- Knees and elbows bend in their anatomical plane. Knees aim roughly forward; they do not collapse inward through the opposite thigh or hyperextend into a lock unless the pose is a brief push-off.
+- Feet: plant on the ball in Run; Idle can be whole-foot with one heel slightly light. Toes flex only at push-off and land. No ice-skate sliding on an in-place cycle.
+- Hands: fingers slightly curled at rest (not splayed, not a tight fist). Thumbs oppose. Wrists stay near neutral; no broken-wrist flaps.
+- In-place policy: **Idle** and **Run** have zero net Root/Hips translation in character-forward. Small vertical and lateral hip travel is required for weight. **Jump** may translate Hips/Root on world up only. **SwordSlash** stays planted; a few centimeters of hip yaw/sway is expected.
+- Loops: frame 1 equals the pose after the last unique frame. Match position **and** first derivative on Hips, spine, and limbs or the loop will tick.
+- Do not scale animated deform bones. IK stretch stays off.
+
+#### `Idle` — 60 frames, loop, 2.0s
+
+Reference: standing human at ease, not a mannequin and not a combat guard. One breath plus a small weight transfer is enough for 2 seconds.
+
+**Silhouette**
+- Asymmetric stand. Put ~55–65% of weight on one leg (default: right). The free foot stays planted but lighter; it may sit 3–8 cm forward or out, not a wide stance.
+- Soft knees (about 5–15°). Never locked.
+- Pelvis a few degrees toward the weighted side. Spine slight S-curve; one shoulder a little lower than the other.
+- Head level, chin neither tucked nor craned. Eyes/face forward.
+- Upper arms hang from the clavicles, grazing the ribcage with a finger-width of clearance. Elbows bent about 10–25°. Hands fall beside the greater trochanter / front pockets, palms in or slightly back. Fingers relaxed-curl. Thumbs rest along the thighs, not stuck out.
+
+**Sparse poses (4–6 keys)**
+1. Frame 1 / 61 — loop pose: weighted stand as above.
+2. Inhale peak (~f18–24) — chest and upper spine rise 1–2 cm, shoulders lift a few millimeters, belly expands less than the chest. Head floats up late.
+3. Weight-shift extreme (~f30–36) — pelvis eases toward the free leg a centimeter or two, then returns. The “free” knee softens; the weighted foot stays planted.
+4. Exhale trough (~f42–50) — chest drops, shoulders settle, head follows down a few millimeters.
+5. Optional small head/look offset mid-loop (2–4°), returning to frame 1.
+
+**Timing**
+- Treat the 2.0s clip as **one** visible breath (game-compressed; real rest breathing is slower). Inhale a little longer than exhale.
+- Offset: hips first, chest 2–4 frames later, shoulders 1–2 after chest, head last.
+- Amplitude must read at playblast scale and disappear as “acting” — if Idle looks like a squat or a dance, cut the travel in half.
+
+**Do not**
+- Bounce the whole body on a sine wave.
+- Sway arms away from the torso to “add life.”
+- Mirror-copy left and right.
+- Animate each finger. A single relaxed hand pose is correct.
+
+#### `Run` — 24–30 frames, loop, in-place
+
+Reference: athletic jog-run, not a cartoon cycle and not a walk with both feet planted. A true run has a **flight phase**: both feet off the ground between steps. Full cycle = two steps. At 30 fps, 24 frames ≈ 12 frames/step (quick); 30 frames ≈ 15 frames/step (heavier). Pick one length and keep both steps even, or 1-frame uneven at most.
+
+**Silhouette**
+- Whole body leans forward from the ankles through the hips, not a snapped-forward spine. Head is an extension of that line.
+- Landing is on the **ball of the foot**, not a heel-first walk strike.
+- Stance length is longer than Idle but the knees stay under the hips on the passing pose — do not do the splits.
+- Arms pump **close to the ribs**. Elbows stay near 70–100°. Hands on a short fore-aft arc beside the hips/waist, not above the shoulders and not out in a T. Fingers loose or lightly closed.
+- Opposition: left leg forward ↔ right arm forward. Hips yaw toward the back (pushing) leg; shoulders yaw the other way.
+- Flight pose is compact: recovery knee comes forward high enough to clear the ground, trailing leg extends behind, body at the high point of the bounce.
+
+**Sparse poses for a two-step cycle (8 keys; mirror the second step)**
+
+Use this Williams/game recipe, then stop:
+
+| Pose | What it is | Legs | Arms | Hips / chest |
+|---|---|---|---|---|
+| Contact L | Front foot (L) first touches, usually ball | L almost long, R trailing off ground | R forward, L back, both elbows bent | Lowest-soon; slight yaw |
+| Down L | Weight acceptance, body lowest | L knee bends, foot flat-ish on ball; R knee passing forward | Arms crossing through the middle | Lowest vertical; absorb |
+| Push / takeoff L | L leg extends, last frame before flight | L pushing, heel rising, toes down; R knee up | Arms opening toward next extreme | Rising |
+| Flight / peak after L | Both feet off | Compact: R knee forward, L trailing | Near opposite extremes | Highest vertical |
+| Contact R | Mirror of Contact L | swap L/R | swap L/R | same idea |
+| Down R | Mirror | | | |
+| Push / takeoff R | Mirror | | | |
+| Flight / peak after R | Mirror; last unique pose before loop | | | |
+
+For game blending into Idle, it is valid to **phase the exported loop so frame 1 is a passing/down pose** rather than a full-split contact, as long as the loop is closed and both steps exist inside the clip. Do not start on a contact if that makes Idle→Run look like a sudden stride.
+
+**Vertical and in-place motion**
+- Hips bounce once per step: down on contact/absorb, up on flight. Amplitude is modest (a few centimeters on a human-height character). Same height on both steps.
+- No net forward Root travel. Any visual “run distance” is pose only.
+- Feet that are “planted” must not slide in the ground plane. Air feet travel on short arcs.
+
+**Knees**
+- Sagittal bend only. On Down, the stance knee is bent and the knee point stays in front of the toes’ line, not collapsed into valgus through the other thigh.
+- On Push, do not hyperextend. A soft near-straight is enough.
+- Reject any thigh Y-roll near 180° (see bake note). A correct run thigh rotates on the order of **10–25°**, not 169°.
+
+**Do not**
+- Hold both feet on the ground for the whole clip (that is a walk).
+- Flare elbows or run in a wide A-pose “so nothing hits.”
+- Swing arms in a full shoulder circle.
+- Keep the spine stiff while only the legs cycle.
+
+#### `Jump` — 30–45 frames, not a loop
+
+Reference: standing vertical jump that returns toward Idle. Think squash-and-stretch on **pose**, not mesh scale. Hang time at the apex is what makes it read as weight.
+
+**Phases and a 7–9 pose budget**
+
+| Phase | Approx. share | Pose |
+|---|---|---|
+| Settle from Idle | 2–4 frames | Same silhouette as Idle. |
+| Anticipation / crouch | 6–10 frames | Hips drop, knees and ankles flex, spine rounds slightly, arms go **back and down** close to the body (not out). Weight on balls of feet. This is the squash. |
+| Stretch / takeoff | 2–4 frames | Fast. Legs extend, ankles plantarflex, hips and chest rise, arms swing forward/up only as high as the lower ribs / chest — not a Y-pose. Last frame a toe still explains the push. |
+| Ascent | 6–8 frames | Body opens. Knees may trail, one knee slightly leading the other. Arms come in for balance. |
+| Hang / peak | 3–6 frames | Slowest spacing. Hips highest. Knees soften; feet point down or slightly back. Hold a frame or two so the apex is felt. |
+| Descent | 6–8 frames | Faster spacing. Knees prepare forward/down, arms lower beside the torso, chin slightly down. |
+| Land / compress | 3–5 frames | Balls or whole feet hit together or with a 1-frame stagger. Knees and hips absorb **deeper than Idle**, spine rounds, arms check forward-down near the thighs. No knee lock. |
+| Recover | remaining | Rise back toward the Idle stand. Overshoot the Idle hip height by a small amount, then settle. Last frame should be blendable with Idle (same arm/leg attitude, not a second crouch). |
+
+**Roots**
+- Only Hips/Root move vertically. No forward hop unless the mesh already requires a tiny balance shift; even then, net XZ should return.
+- Takeoff and land must occur when the feet actually leave / meet the ground plane. Do not “float” the whole clip.
+
+**Arms and legs**
+- Arms are counterweights, not wings. If they leave the silhouette, bring them back.
+- Offset the legs a little (one knee leads) so the jump is not a perfectly symmetric frog.
+- On land, knees aim forward over the feet. They must not pass through each other or the pelvis.
+
+**Do not**
+- Skip anticipation or skip compression on landing.
+- Use even spacing the whole way (that reads as a hover-lift).
+- Recover into a T-pose.
+
+#### `SwordSlash` — 24–36 frames, not a loop
+
+Reference: one committed right-handed cut with a short arming sword / long knife. Readable from the front and the side. The hit happens in a few frames; the audience reads the **anticipation and follow-through**.
+
+**Grip**
+- `Hand.R` and finger joints 1–3 close into a handle grip: thumb opposing the fingers, index slightly less clenched than the lower three if useful, wrist aligned with the forearm. Hold that grip from wind-up through follow-through. `Hand.L` stays open-relaxed or a loose counter-fist, never a copy of the right grip.
+
+**Path (mandatory)**
+- The cutting plane is **in front of the sternum**, not through the belly.
+- Wind-up: Hand.R high-right and slightly rear-right, clear of the head, ear, and back. Elbow.R stays outside the ribcage and **not** flared to a T.
+- Slash: Hand.R travels in a convex arc across the front of the chest (high-right → center-front → low/mid-left-front).
+- Follow-through: Hand.R finishes left-front, still off the body. Then recover toward Idle.
+- Rotate **Hips and Chest** with the cut (load back-right, unwind through center, settle left). The arm does not do all of the travel.
+- Left arm counters on the opposite side of the torso, close, never through the stomach and never stuck out.
+
+**Sparse poses (6–8 keys)**
+
+| Pose | Timing idea | What to hit |
+|---|---|---|
+| Start | f1 | Idle-like stand, right hand already suggesting a grip at the hip or low-ready. |
+| Load / wind-up | slow, ~8–12 frames | Weight onto right-back foot, hips/chest coil clockwise (from above), Hand.R high-right, head may track the future target then the hands. |
+| Commit | 2–3 frames | Chest starts to unwind. Hand.R still back-right but the elbow has a path forward of the ribs. |
+| Cut / “contact” | 2–4 frames, fastest | Hand.R crosses in front of the chest. This is the spacing extreme: few frames, long travel. Hips face more toward the cut. |
+| Follow-through | 6–8 frames | Hand.R and chest arrive left-front. Weight can pass onto the left foot. Spine and head overshoot a little. |
+| Recoil / recover | remaining | Uncoil to Idle. Right hand lowers. Fingers may stay in grip until the last few frames. |
+
+Ease into the wind-up and out of the follow-through. Do **not** ease the cut itself.
+
+**Do not**
+- Animate a straight line from high-right through the abdomen to low-left.
+- Keep Chest/Hips facing camera the whole time and swing only the arm.
+- Abduct the right shoulder to “make clearance.” Move the arc forward and add torso rotation instead.
+- Invent a sword mesh.
+
+#### Overlap cheat-sheet (apply after extremes read)
+
+- Hips lead. Chest 1–3 frames later. Head later still and smaller.
+- UpperArm leads Forearm leads Hand. On the slash cut, the hand can catch up fast; on Idle/Run, the hand lags.
+- Clavicles only help the last bit of shoulder motion; do not animate them like extra arms.
+- On Run flight and Jump hang, let the trailing shin/foot drag a frame behind the knee.
+
 ### 5c. No self-intersection in clips
 
-Animated appendages must stay outside this character's own mesh. Do not accept a clip in which an arm, elbow, hand, weapon, leg, knee, or foot passes through the torso, pelvis, head, or the opposite limb.
+Animated appendages must stay outside this character's own mesh. Do not accept a clip in which an arm, elbow, hand, weapon path, leg, knee, or foot passes through the torso, pelvis, head, or the opposite limb.
 
 Do **not** solve that by sticking the arms out. A T-pose, scarecrow, or wide A-pose Idle/Run/Jump is a failure even if nothing intersects. Keep a normal character silhouette: upper arms near the ribs, elbows slightly bent, hands close to the hips or on a real run/slash path. A few centimeters of clearance is enough.
 
@@ -236,6 +407,7 @@ Run the following checks before calling the rig complete:
 - Geometry: inspect physical connectivity and intended separate parts without changing topology solely to satisfy a count.
 - Poses: elbows and knees at representative bends; shoulders raised/lowered; hip stride/crouch; torso twist; head turn; wrist bends; individual digits and combined finger curls; thumbs; ankle/toe bends.
 - Clip self-intersection: no limb-through-torso or limb-through-limb on Idle, Run, Jump, or SwordSlash. Scrub SwordSlash in particular for the right arm entering the chest or belly. Also reject T-pose / scarecrow / wide A-pose clearance cheats; arms must look like a normal character.
+- Clip body mechanics: Idle breathes and shifts on an asymmetric stand; Run has absorb + flight and opposite arm/leg close to the torso; Jump has crouch, hang, and land squash; Slash has a slow load and a fast front-of-chest cut. Authored pose counts stay in the 5b budget.
 - IK: no stretch, targets track, pole directions are stable, and rest switching does not visibly jump.
 - Inspect front, back, side, and close hand views. Check for spikes, tears, collapsed joints, unintended pulls, and unacceptable intersections.
 - Measure local edge deformation as a diagnostic, including absolute changes and edge lengths. Do not treat all expected joint-surface stretching as a bug or dismiss a visible defect because a percentile is low.
@@ -261,13 +433,30 @@ Preserve Unity `.meta` GUIDs when replacing project files. Verify Humanoid mappi
 
 ## Reuse prompt
 
-"Read the Modular Biped Humanoid Rig Standard v1 and its FBX companion; parse the reference JSON in code without dumping its matrices into chat. Rig this character using biped_humanoid_v1: identical core names and hierarchy, calibrated matrix transforms, modular anatomy fitting, full fingers, verified skin weights, then author Idle, Run, Jump, and SwordSlash with no limb-through-body mesh penetration, and a baked skinned export with those clips. Preserve the working Blender rig and report validation results."
-
+"Read the Modular Biped Humanoid Rig Standard v1 and its FBX companion; parse the reference JSON in code without dumping its matrices into chat. Rig this character using biped_humanoid_v1: identical core names and hierarchy, calibrated matrix transforms, modular anatomy fitting, full fingers, verified skin weights, then author Idle, Run, Jump, and SwordSlash from the sparse pose recipes (not per-frame noise), with no limb-through-body mesh penetration and no T-pose/scarecrow clearance cheats, and a baked skinned export with those clips. Preserve the working Blender rig and report validation results."
 
 ## Animation-bake failure to prevent: reversed knee poles
 
 The initial elf animation generator moved the knee poles forward relative to the near-straight reference legs, then blindly baked the IK solver matrices. Joint positions looked plausible, but both thighs acquired an approximately 169-degree rotation, twisting the skinned legs and lower torso. Successful export round trips reproduced that defect and therefore did not prove animation quality.
 
-When changing a pole or bend plane, inspect axial bone orientation as well as joint endpoints. For the corrected elf bake, each leg segment retains its inherited reference orientation and receives the shortest swing that aligns its local +Y with the solved segment direction; do not inherit an unintended solver half-turn. Keep intended authored twist separate. This is a bake correction, not an assertion that the reference interactive IK controls automatically enforce it.
+When changing a pole or bend plane, inspect axial bone orientation as well as joint endpoints. For the corrected bake, each leg segment retains its inherited reference orientation and receives the shortest swing that aligns its local +Y with the solved segment direction; do not inherit an unintended solver half-turn. Keep intended authored twist separate. This is a bake correction, not an assertion that the reference interactive IK controls automatically enforce it.
 
-Validate actual deformed geometry in neutral animation poses, scan rotations across the complete clips, and reject unexplained near-half-turn limb rotations. Preserve the rest skeleton and weights when animation transforms are the cause. The corrected elf Idle uses approximately 16-degree thigh rotations rather than 169 degrees.
+Validate actual deformed geometry in neutral animation poses, scan rotations across the complete clips, and reject unexplained near-half-turn limb rotations. Preserve the rest skeleton and weights when animation transforms are the cause.
+
+**Numeric smell tests (not a substitute for a playblast)**
+- Idle / recovered Jump / recovered Slash: thigh local swing from rest typically stays small (on the order of the corrected elf Idle, ~15°), never ~170°.
+- Run: thighs and upper arms show short opposing swings, not a once-per-cycle flip.
+- If a limb’s twist plot jumps through 180°, undo the bake for that chain and re-solve with the short-arc rule before shipping.
+
+## Clip review (keep this compact)
+
+Review in playback and a short contact sheet of the **authored extremes**, not dozens of near-identical full-resolution frames. For each clip confirm:
+
+1. Silhouette is a person, not a scarecrow.
+2. Weight: Idle breathes and shifts; Run has absorb + flight; Jump has crouch, hang, and land squash; Slash has slow load and a fast cut.
+3. Hands, knees, and elbows do the jobs in §5b.
+4. Loop ends match (Idle, Run).
+5. No mesh penetration and no reversed-pole twist.
+6. Key count on deform bones stays in the budget; export bake may be denser, authored poses must not.
+
+A clip that only “clears” because the arms are posed out, or that only “loops” because two identical stills were copied, is not done.
