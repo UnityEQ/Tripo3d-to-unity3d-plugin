@@ -72,9 +72,10 @@ namespace Tripo3D.Editor
                 "- Slug: `" + slug + "`\n" +
                 "- Output folder: `" + outDir + "`\n\n" +
                 "## Specs (required reading)\n\n" +
-                "1. `Modular Biped Humanoid Rig Standard v1.md`\n" +
-                "2. `Biped Humanoid Rig v1 - Reference.json` (schema `biped_humanoid_v1`)\n" +
-                "3. `Lychee Model GLB - Blender FBX - Unity.md`\n\n" +
+                "1. `Modular Biped Humanoid Rig Standard v1.md` — read this.\n" +
+                "2. `Lychee Model GLB - Blender FBX - Unity.md` — read this.\n" +
+                "3. `Biped Humanoid Rig v1 - Reference.json` — **do not load this into the chat** (~125 KB of matrices). The path is `schema` in the job JSON. Pass it to Blender.\n\n" +
+                "Prefer `Tools/Blender/biped_humanoid_v1/run.py --glb GLB --out OUT --slug SLUG --schema SCHEMA` and `agent.py` (`inventory` / `validate` / `export`) over writing new pipeline scripts. Landmark fit and the four clips are still required after the first bind. Do not paste images, meshes, `.npy`, or collision-pair dumps into the conversation. Do not generate per-job Editor C# importers.\n\n" +
                 "## Do these ops in order\n\n" +
                 "1. Inventory the mesh (counts, UVs, materials, transforms). Back up if replacing a rig.\n" +
                 "2. Fit anatomical landmarks and build the exact 52-bone export skeleton (names/parents must match the standard). Optional IK controls, FK default.\n" +
@@ -89,6 +90,8 @@ namespace Tripo3D.Editor
                 "6. Export skinned FBX with textures **and these four clips** per the Lychee document (`-Z` forward, `Y` up, Copy+Embed, no leaf bones). `bake_anim=True`, `bake_anim_use_all_actions=True` for Idle / Run / Jump / SwordSlash only.\n" +
                 "7. Save `" + slug + "_rigged.blend`, `" + slug + "_rig_manifest.json`, `" + slug + "_rig_validation.json`.\n" +
                 "8. Import the FBX back into this Unity project and ping the asset. Humanoid avatar; Idle and Run loop, Jump and SwordSlash do not.\n\n" +
+                "## Job file (required)\n\n" +
+                "Update `Temp/tripo-ai-jobs/<id>.json` as you go: `status` `working`, `stage` (short), `updatedAt` (ISO time) so Unity does not time out. When Unity import and Humanoid checks succeed, set `status` to `done` and write an empty sibling `<id>.json.done`. On failure: `status` `failed` and `<id>.json.failed`. Do not leave the job on `working` after you are finished.\n\n" +
                 "Reuse line: Read the Modular Biped Humanoid Rig Standard v1 and its reference JSON. Rig this character using biped_humanoid_v1: identical core names and hierarchy, calibrated matrix transforms, modular anatomy fitting, full fingers, verified skin weights, then author Idle, Run, Jump, and SwordSlash with no limb-through-body mesh penetration, and a baked skinned export with those clips. Preserve the working Blender rig and report validation results.\n";
         }
 

@@ -879,6 +879,8 @@ namespace Tripo3D.Editor
                 record.message = message;
                 if (state == TripoJobState.Failed || state == TripoJobState.Cancelled)
                     record.error = message;
+                else if (state == TripoJobState.Success)
+                    record.error = string.Empty;
                 TripoSession.instance.Persist();
             }
 
@@ -987,6 +989,12 @@ namespace Tripo3D.Editor
             ClearJobs();
         }
 
+        [MenuItem("Tripo 3D/Refresh Job Status", false, 3)]
+        static void RefreshJobsMenu()
+        {
+            ReconcileOpenJobs();
+        }
+
         public static void ReconcileOpenJobs()
         {
             var jobs = TripoSession.instance.jobs;
@@ -995,7 +1003,7 @@ namespace Tripo3D.Editor
             var changed = false;
             for (var i = 0; i < jobs.Count; i++)
             {
-                if (SyncStuckJob(jobs[i]))
+                if (SyncStuckJob(jobs[i], true))
                     changed = true;
             }
 
@@ -1028,14 +1036,14 @@ namespace Tripo3D.Editor
             var changed = false;
             for (var i = 0; i < jobs.Count; i++)
             {
-                if (IsTerminal(jobs[i].status))
+                var blender = string.Equals(jobs[i].kind, TripoJobKind.BlenderRig.ToString(), StringComparison.Ordinal);
+                var recoverFailed = blender && jobs[i].status == TripoJobState.Failed.ToString();
+                if (IsTerminal(jobs[i].status) && !recoverFailed)
                     continue;
-                open = true;
-                if (string.Equals(jobs[i].kind, TripoJobKind.BlenderRig.ToString(), StringComparison.Ordinal))
-                {
-                    if (SyncBlenderJob(jobs[i]))
-                        changed = true;
-                }
+                if (blender && SyncBlenderJob(jobs[i]))
+                    changed = true;
+                if (!IsTerminal(jobs[i].status))
+                    open = true;
             }
 
             if (changed)
@@ -1051,12 +1059,19 @@ namespace Tripo3D.Editor
             }
         }
 
-        static bool SyncStuckJob(TripoJobRecord job)
+        static bool SyncStuckJob(TripoJobRecord job, bool allowFailedRecovery = false)
         {
-            if (job == null || IsTerminal(job.status))
+            if (job == null)
                 return false;
             if (string.Equals(job.kind, TripoJobKind.BlenderRig.ToString(), StringComparison.Ordinal))
+            {
+                if (IsTerminal(job.status) && !(allowFailedRecovery && job.status == TripoJobState.Failed.ToString()))
+                    return false;
                 return SyncBlenderJob(job);
+            }
+
+            if (IsTerminal(job.status))
+                return false;
             if (string.IsNullOrEmpty(job.taskId) && JobAgeMinutes(job) >= 2)
             {
                 Fail(job, "Stopped before a Tripo task id was created. Often out of credits, a network error, or the editor reloaded.");
@@ -1072,41 +1087,54 @@ namespace Tripo3D.Editor
             if (!string.IsNullOrEmpty(fileId) && fileId != job.taskId)
                 job.taskId = fileId;
 
+            var alreadyFailed = job.status == TripoJobState.Failed.ToString();
             var tokenError = ReadDispatchTokenError(fileId);
             if (!string.IsNullOrEmpty(tokenError))
             {
+                if (alreadyFailed && job.error == tokenError)
+                    return false;
                 Fail(job, tokenError);
                 return true;
             }
 
             var fileStatus = ReadAiJobStatus(fileId);
-            if (fileStatus == "done" || fileStatus == "success")
+            if (fileStatus == "done" || fileStatus == "success" || BlenderOutputsComplete(fileId))
             {
+                MarkAiJobDone(fileId);
                 TryAttachRiggedAsset(job);
+                if (job.status == TripoJobState.Success.ToString() && job.progress >= 100)
+                    return false;
                 Set("Blender rig finished.", 100f, TripoJobState.Success, job);
                 return true;
             }
 
             if (fileStatus == "failed" || fileStatus == "error" || fileStatus == "cancelled")
             {
+                if (alreadyFailed)
+                    return false;
                 Fail(job, "Blender rig failed. The AI agent may have run out of tokens, or Blender returned an error. Check Temp/tripo-ai-jobs/.");
                 return true;
             }
 
             if (fileStatus == "claimed" || fileStatus == "running" || fileStatus == "working")
             {
-                if (job.status != TripoJobState.Running.ToString() && job.status != TripoJobState.Rigging.ToString())
-                {
-                    Set("ChatGPT/Grok is rigging in Blender...", 40f, TripoJobState.Running, job);
-                    return true;
-                }
-
-                return false;
+                if (job.status == TripoJobState.Running.ToString() || job.status == TripoJobState.Rigging.ToString())
+                    return false;
+                Set("ChatGPT/Grok is rigging in Blender...", 40f, TripoJobState.Running, job);
+                return true;
             }
 
-            if (JobAgeMinutes(job) >= 12)
+            if (JobFileStaleMinutes(fileId, job) >= 12)
             {
+                if (alreadyFailed)
+                    return false;
                 Fail(job, "Blender rig job got no AI update for 12+ minutes. The ChatGPT/Grok session likely ran out of tokens or stopped. Top up, then send the GLB again.");
+                return true;
+            }
+
+            if (alreadyFailed)
+            {
+                Set("Blender rig queued for " + TripoSettings.AiProviderLabel + ". Waiting on that session to pick up Temp/tripo-ai-jobs/" + (fileId ?? "") + ".json.", 10f, TripoJobState.Queued, job);
                 return true;
             }
 
@@ -1117,6 +1145,117 @@ namespace Tripo3D.Editor
             }
 
             return false;
+        }
+
+        static bool BlenderOutputsComplete(string jobFileId)
+        {
+            if (string.IsNullOrEmpty(jobFileId))
+                return false;
+            var jsonPath = Path.Combine(TripoAiBridge.JobsDir, jobFileId + ".json");
+            if (!File.Exists(jsonPath))
+                return false;
+            string json;
+            try
+            {
+                json = File.ReadAllText(jsonPath);
+            }
+            catch
+            {
+                return false;
+            }
+
+            var outDir = GetJsonString(json, "out");
+            var slug = GetJsonString(json, "slug");
+            if (string.IsNullOrEmpty(outDir) || string.IsNullOrEmpty(slug))
+                return false;
+            var fbx = Path.Combine(outDir, slug + ".fbx");
+            var roundtrip = Path.Combine(outDir, slug + "_roundtrip_validation.json");
+            if (!File.Exists(fbx) || !File.Exists(roundtrip))
+                return false;
+            string report;
+            try
+            {
+                report = File.ReadAllText(roundtrip);
+            }
+            catch
+            {
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(report))
+                return false;
+            if (GetJsonBool(report, "ok") != true)
+                return false;
+            return report.IndexOf("\"Idle\"", StringComparison.Ordinal) >= 0
+                   && report.IndexOf("\"Run\"", StringComparison.Ordinal) >= 0
+                   && report.IndexOf("\"Jump\"", StringComparison.Ordinal) >= 0
+                   && report.IndexOf("\"SwordSlash\"", StringComparison.Ordinal) >= 0;
+        }
+
+        static void MarkAiJobDone(string jobFileId)
+        {
+            if (string.IsNullOrEmpty(jobFileId))
+                return;
+            var jsonPath = Path.Combine(TripoAiBridge.JobsDir, jobFileId + ".json");
+            try
+            {
+                if (File.Exists(jsonPath) && !File.Exists(jsonPath + ".done"))
+                    File.WriteAllText(jsonPath + ".done", "");
+            }
+            catch
+            {
+            }
+        }
+
+        static double JobFileStaleMinutes(string jobFileId, TripoJobRecord job)
+        {
+            if (!string.IsNullOrEmpty(jobFileId))
+            {
+                var jsonPath = Path.Combine(TripoAiBridge.JobsDir, jobFileId + ".json");
+                if (File.Exists(jsonPath))
+                    return (DateTime.Now - File.GetLastWriteTime(jsonPath)).TotalMinutes;
+            }
+
+            return JobAgeMinutes(job);
+        }
+
+        static string GetJsonString(string json, string key)
+        {
+            if (string.IsNullOrEmpty(json) || string.IsNullOrEmpty(key))
+                return null;
+            var token = "\"" + key + "\"";
+            var index = json.IndexOf(token, StringComparison.Ordinal);
+            if (index < 0)
+                return null;
+            var colon = json.IndexOf(':', index + token.Length);
+            if (colon < 0)
+                return null;
+            var q1 = json.IndexOf('"', colon + 1);
+            if (q1 < 0)
+                return null;
+            var q2 = json.IndexOf('"', q1 + 1);
+            if (q2 < 0)
+                return null;
+            return json.Substring(q1 + 1, q2 - q1 - 1).Replace("\\\\", "\\");
+        }
+
+        static bool? GetJsonBool(string json, string key)
+        {
+            if (string.IsNullOrEmpty(json) || string.IsNullOrEmpty(key))
+                return null;
+            var token = "\"" + key + "\"";
+            var index = json.LastIndexOf(token, StringComparison.Ordinal);
+            if (index < 0)
+                return null;
+            var colon = json.IndexOf(':', index + token.Length);
+            if (colon < 0)
+                return null;
+            var rest = json.Substring(colon + 1).TrimStart();
+            if (rest.StartsWith("true", StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (rest.StartsWith("false", StringComparison.OrdinalIgnoreCase))
+                return false;
+            return null;
         }
 
         static string ResolveAiJobFileId(TripoJobRecord job)
