@@ -1,10 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using UnityEngine.Networking;
 
 namespace Tripo3D.Editor
 {
@@ -14,31 +14,32 @@ namespace Tripo3D.Editor
 
         public static string LastRawJson { get; private set; }
 
-        static readonly HttpClient Http = CreateClient();
+        static string _key;
 
-        static HttpClient CreateClient()
+        public static void UseKey(string key)
         {
-            var client = new HttpClient();
-            client.Timeout = TimeSpan.FromMinutes(3);
-            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            return client;
+            _key = key ?? string.Empty;
+        }
+
+        static string Key
+        {
+            get { return !string.IsNullOrEmpty(_key) ? _key : TripoSettings.ApiKey; }
         }
 
         public static async Task<string> UploadFileAsync(string filePath, byte[] bytes, CancellationToken ct)
         {
             RequireKey();
             var name = string.IsNullOrEmpty(filePath) ? "image.png" : Path.GetFileName(filePath);
-            using (var form = new MultipartFormDataContent())
-            using (var fileContent = new ByteArrayContent(bytes ?? Array.Empty<byte>()))
+            var sections = new List<IMultipartFormSection>
             {
-                fileContent.Headers.ContentType = new MediaTypeHeaderValue(GuessMime(name));
-                form.Add(fileContent, "file", name);
-                var json = await SendAsync(HttpMethod.Post, "/files", form, ct).ConfigureAwait(false);
-                var response = TripoJson.RequireSuccess(json);
-                if (string.IsNullOrEmpty(response.data.file_token))
-                    throw new TripoException("Upload succeeded but no file_token was returned.");
-                return response.data.file_token;
-            }
+                new MultipartFormFileSection("file", bytes ?? Array.Empty<byte>(), name, GuessMime(name))
+            };
+            var req = UnityWebRequest.Post(Url("/files"), sections);
+            var json = await SendText(req, ct);
+            var response = TripoJson.RequireSuccess(json);
+            if (response.data == null || string.IsNullOrEmpty(response.data.file_token))
+                throw new TripoException("Upload succeeded but no file_token was returned.");
+            return response.data.file_token;
         }
 
         public static Task<string> ImageToModelAsync(string input, TripoGenerateOptions options, CancellationToken ct)
@@ -63,17 +64,15 @@ namespace Tripo3D.Editor
 
         public static Task<string> MultiviewToModelAsync(string front, string left, string back, string right, TripoGenerateOptions options, CancellationToken ct)
         {
-            var inputs = "[" +
-                         "{\"front\":\"" + front + "\"}," +
-                         "{\"left\":\"" + left + "\"}," +
-                         "{\"back\":\"" + back + "\"}," +
-                         "{\"right\":\"" + right + "\"}" +
-                         "]";
             var model = options != null && !string.IsNullOrEmpty(options.Model) ? options.Model : "v3.1-20260211";
-            var body = "{\"inputs\":" + inputs +
-                       ",\"model\":\"" + model + "\"" +
+            var body = "{\"inputs\":[" +
+                       "{\"front\":\"" + front + "\"}," +
+                       "{\"left\":\"" + left + "\"}," +
+                       "{\"back\":\"" + back + "\"}," +
+                       "{\"right\":\"" + right + "\"}" +
+                       "],\"model\":\"" + model + "\"" +
                        ",\"texture\":" + (options == null || options.Texture ? "true" : "false") +
-                       ",\"pbr\":" + (options == null || options.Pbr ? "true" : "false") + "}";
+                       ",\"pbr\":" + (options != null && options.Pbr ? "true" : "false") + "}";
             return CreateTaskAsync("/generation/multiview-to-model", body, ct);
         }
 
@@ -119,90 +118,140 @@ namespace Tripo3D.Editor
         {
             if (string.IsNullOrEmpty(taskId))
                 throw new TripoException("Missing task id.");
-            var json = await SendAsync(HttpMethod.Get, "/tasks/" + taskId, null, ct).ConfigureAwait(false);
+            var req = UnityWebRequest.Get(Url("/tasks/" + taskId));
+            var json = await SendText(req, ct);
             return TripoJson.RequireSuccess(json).data;
         }
 
         public static async Task<TripoData> GetBalanceAsync(CancellationToken ct)
         {
-            var json = await SendAsync(HttpMethod.Get, "/account/balance", null, ct).ConfigureAwait(false);
+            var req = UnityWebRequest.Get(Url("/account/balance"));
+            var json = await SendText(req, ct);
             return TripoJson.RequireSuccess(json).data;
         }
 
-        public static async Task<byte[]> DownloadAsync(string url, CancellationToken ct)
+        public static Task<byte[]> DownloadAsync(string url, CancellationToken ct)
         {
             if (string.IsNullOrEmpty(url))
                 throw new TripoException("Missing download URL.");
-            using (var request = new HttpRequestMessage(HttpMethod.Get, url))
-            using (var response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false))
-            {
-                if (!response.IsSuccessStatusCode)
-                {
-                    var text = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                    throw new TripoException("Download failed (" + (int)response.StatusCode + "): " + Trim(text, 300));
-                }
-
-                return await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
-            }
+            var req = UnityWebRequest.Get(url);
+            return SendBytes(req, ct);
         }
 
         static async Task<string> CreateTaskAsync(string path, string jsonBody, CancellationToken ct)
         {
-            using (var content = new StringContent(jsonBody, Encoding.UTF8, "application/json"))
+            var json = await SendText(JsonPost(path, jsonBody), ct);
+            var response = TripoJson.RequireSuccess(json);
+            if (response.data == null || string.IsNullOrEmpty(response.data.task_id))
+                throw new TripoException("Tripo API did not return a task_id.");
+            return response.data.task_id;
+        }
+
+        static UnityWebRequest JsonPost(string path, string jsonBody)
+        {
+            var req = new UnityWebRequest(Url(path), UnityWebRequest.kHttpVerbPOST);
+            var raw = Encoding.UTF8.GetBytes(jsonBody ?? "{}");
+            req.uploadHandler = new UploadHandlerRaw(raw);
+            req.downloadHandler = new DownloadHandlerBuffer();
+            req.SetRequestHeader("Content-Type", "application/json");
+            return req;
+        }
+
+        static string Url(string path)
+        {
+            if (!string.IsNullOrEmpty(path) && path.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                return path;
+            return BaseUrl + path;
+        }
+
+        static Task<string> SendText(UnityWebRequest req, CancellationToken ct)
+        {
+            return Send(req, ct, true);
+        }
+
+        static async Task<byte[]> SendBytes(UnityWebRequest req, CancellationToken ct)
+        {
+            try
             {
-                var json = await SendAsync(HttpMethod.Post, path, content, ct).ConfigureAwait(false);
-                var response = TripoJson.RequireSuccess(json);
-                if (string.IsNullOrEmpty(response.data.task_id))
-                    throw new TripoException("Tripo API did not return a task_id.");
-                return response.data.task_id;
+                await Send(req, ct, false);
+                return req.downloadHandler != null && req.downloadHandler.data != null
+                    ? req.downloadHandler.data
+                    : Array.Empty<byte>();
+            }
+            finally
+            {
+                req.Dispose();
             }
         }
 
-        static async Task<string> SendAsync(HttpMethod method, string path, HttpContent content, CancellationToken ct)
+        static Task<string> Send(UnityWebRequest req, CancellationToken ct, bool asText)
         {
             RequireKey();
-            var url = path.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? path : BaseUrl + path;
-            using (var request = new HttpRequestMessage(method, url))
-            {
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", TripoSettings.ApiKey);
-                if (content != null)
-                    request.Content = content;
+            req.timeout = 180;
+            req.SetRequestHeader("Authorization", "Bearer " + Key);
+            req.SetRequestHeader("Accept", "application/json");
+            if (req.downloadHandler == null)
+                req.downloadHandler = new DownloadHandlerBuffer();
 
-                HttpResponseMessage response;
+            var tcs = new TaskCompletionSource<string>();
+            var op = req.SendWebRequest();
+            CancellationTokenRegistration reg = default;
+            if (ct.CanBeCanceled)
+            {
+                reg = ct.Register(() =>
+                {
+                    try { req.Abort(); } catch { }
+                });
+            }
+
+            op.completed += _ =>
+            {
                 try
                 {
-                    response = await Http.SendAsync(request, ct).ConfigureAwait(false);
-                }
-                catch (TaskCanceledException) when (!ct.IsCancellationRequested)
-                {
-                    throw new TripoException("The Tripo API request timed out.");
-                }
-                catch (HttpRequestException ex)
-                {
-                    throw new TripoException("Network error talking to Tripo: " + ex.Message);
-                }
-
-                using (response)
-                {
-                    var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                    if (!response.IsSuccessStatusCode)
+                    reg.Dispose();
+                    var json = req.downloadHandler != null ? req.downloadHandler.text : string.Empty;
+                    LastRawJson = json;
+                    if (ct.IsCancellationRequested)
                     {
-                        try
-                        {
-                            TripoJson.RequireSuccess(json);
-                        }
-                        catch (TripoException)
-                        {
-                            throw;
-                        }
-
-                        throw new TripoException("Tripo API HTTP " + (int)response.StatusCode + ": " + Trim(json, 400));
+                        tcs.TrySetCanceled();
+                        return;
                     }
 
-                    LastRawJson = json;
-                    return json;
+                    if (req.result != UnityWebRequest.Result.Success)
+                    {
+                        if (asText && !string.IsNullOrEmpty(json))
+                        {
+                            try
+                            {
+                                TripoJson.RequireSuccess(json);
+                            }
+                            catch (TripoException ex)
+                            {
+                                tcs.TrySetException(ex);
+                                return;
+                            }
+                        }
+
+                        tcs.TrySetException(new TripoException(
+                            "Tripo API HTTP " + req.responseCode + ": " +
+                            (string.IsNullOrEmpty(req.error) ? Trim(json, 400) : req.error)));
+                        return;
+                    }
+
+                    tcs.TrySetResult(asText ? json : string.Empty);
                 }
-            }
+                catch (Exception ex)
+                {
+                    tcs.TrySetException(ex);
+                }
+                finally
+                {
+                    if (asText)
+                        req.Dispose();
+                }
+            };
+
+            return tcs.Task;
         }
 
         static string BuildModelBody(string input, TripoGenerateOptions options, bool includePrompt)
@@ -267,8 +316,8 @@ namespace Tripo3D.Editor
 
         static void RequireKey()
         {
-            if (!TripoSettings.HasApiKey)
-                throw new TripoException("Add your Tripo API key in Tripo Studio > Settings.");
+            if (string.IsNullOrEmpty(Key))
+                throw new TripoException("Add your Tripo3D API key in Tripo Studio > Settings.");
         }
 
         static string GuessMime(string fileName)

@@ -89,16 +89,16 @@ namespace Tripo3D.Editor
             await Run(TripoJobKind.ImageToModel, DisplayName(imagePath, options), async (record, ct) =>
             {
                 Set("Uploading image...", 5f, TripoJobState.Uploading, record);
-                var token = await TripoApiClient.UploadFileAsync(imagePath, imageBytes, ct).ConfigureAwait(false);
+                var token = await TripoApiClient.UploadFileAsync(imagePath, imageBytes, ct);
                 if (options != null)
                     record.model = options.Model;
                 Set("Creating image-to-3D task...", 12f, TripoJobState.Creating, record);
-                var taskId = await TripoApiClient.ImageToModelAsync(token, options, ct).ConfigureAwait(false);
+                var taskId = await TripoApiClient.ImageToModelAsync(token, options, ct);
                 record.taskId = taskId;
                 Remember(taskId, record.name, TripoJobKind.ImageToModel);
-                var task = await PollAsync(taskId, record, ct).ConfigureAwait(false);
-                await ImportAsync(task, record, options, ct).ConfigureAwait(false);
-            }).ConfigureAwait(false);
+                var task = await PollAsync(taskId, record, ct);
+                await ImportAsync(task, record, options, ct);
+            });
         }
 
         public static async void RunTextToModel(TripoGenerateOptions options)
@@ -108,12 +108,12 @@ namespace Tripo3D.Editor
                 if (options != null)
                     record.model = options.Model;
                 Set("Creating text-to-3D task...", 8f, TripoJobState.Creating, record);
-                var taskId = await TripoApiClient.TextToModelAsync(options, ct).ConfigureAwait(false);
+                var taskId = await TripoApiClient.TextToModelAsync(options, ct);
                 record.taskId = taskId;
                 Remember(taskId, record.name, TripoJobKind.TextToModel);
-                var task = await PollAsync(taskId, record, ct).ConfigureAwait(false);
-                await ImportAsync(task, record, options, ct).ConfigureAwait(false);
-            }).ConfigureAwait(false);
+                var task = await PollAsync(taskId, record, ct);
+                await ImportAsync(task, record, options, ct);
+            });
         }
 
         public static void RunBlenderRig(string glbAssetOrDiskPath)
@@ -126,20 +126,20 @@ namespace Tripo3D.Editor
             await Run(TripoJobKind.ImageToMultiview, DisplayName(imagePath, null) + "_sheet", async (record, ct) =>
             {
                 Set("Uploading image...", 5f, TripoJobState.Uploading, record);
-                var token = await TripoApiClient.UploadFileAsync(imagePath, imageBytes, ct).ConfigureAwait(false);
+                var token = await TripoApiClient.UploadFileAsync(imagePath, imageBytes, ct);
                 Set("Generating character sheet...", 12f, TripoJobState.Creating, record);
-                var taskId = await TripoApiClient.ImageToMultiviewAsync(token, ct).ConfigureAwait(false);
+                var taskId = await TripoApiClient.ImageToMultiviewAsync(token, ct);
                 record.taskId = taskId;
                 Remember(taskId, record.name, TripoJobKind.ImageToMultiview);
                 LastMultiviewTaskId = taskId;
-                var task = await PollAsync(taskId, record, ct).ConfigureAwait(false);
+                var task = await PollAsync(taskId, record, ct);
                 await OnMain(() =>
                 {
                     if (onViews != null)
                         onViews(task.output);
-                }).ConfigureAwait(false);
+                });
                 Set("Character sheet ready.", 100f, TripoJobState.Success, record);
-            }).ConfigureAwait(false);
+            });
         }
 
         public static async void RunMultiviewToModel(string front, string left, string back, string right, TripoGenerateOptions options)
@@ -149,12 +149,12 @@ namespace Tripo3D.Editor
                 if (options != null)
                     record.model = options.Model;
                 Set("Creating multiview-to-3D task...", 10f, TripoJobState.Creating, record);
-                var taskId = await TripoApiClient.MultiviewToModelAsync(front, left, back, right, options, ct).ConfigureAwait(false);
+                var taskId = await TripoApiClient.MultiviewToModelAsync(front, left, back, right, options, ct);
                 record.taskId = taskId;
                 Remember(taskId, record.name, TripoJobKind.MultiviewToModel);
-                var task = await PollAsync(taskId, record, ct).ConfigureAwait(false);
-                await ImportAsync(task, record, options, ct).ConfigureAwait(false);
-            }).ConfigureAwait(false);
+                var task = await PollAsync(taskId, record, ct);
+                await ImportAsync(task, record, options, ct);
+            });
         }
 
         public static async void RunDetectProps(
@@ -175,11 +175,11 @@ namespace Tripo3D.Editor
                     options.PlaceInScene = false;
                     options.RigInBlender = false;
                     options.ConvertToFbx = false;
-                    var modelId = await TripoApiClient.MultiviewToModelAsync(viewUrls[0], viewUrls[1], viewUrls[2], viewUrls[3], options, ct).ConfigureAwait(false);
+                    var modelId = await TripoApiClient.MultiviewToModelAsync(viewUrls[0], viewUrls[1], viewUrls[2], viewUrls[3], options, ct);
                     record.taskId = modelId;
                     Remember(modelId, record.name, TripoJobKind.MultiviewToModel);
-                    var modelTask = await PollAsync(modelId, record, ct).ConfigureAwait(false);
-                    await ImportAsync(modelTask, record, options, ct).ConfigureAwait(false);
+                    var modelTask = await PollAsync(modelId, record, ct);
+                    await ImportAsync(modelTask, record, options, ct);
                     modelInput = modelId;
                 }
 
@@ -188,7 +188,7 @@ namespace Tripo3D.Editor
                     var disk = ResolveGlbDiskPath(LastGlbPath);
                     Set("Uploading GLB for segmentation...", 10f, TripoJobState.Uploading, record);
                     var bytes = File.ReadAllBytes(disk);
-                    modelInput = await TripoApiClient.UploadFileAsync(disk, bytes, ct).ConfigureAwait(false);
+                    modelInput = await TripoApiClient.UploadFileAsync(disk, bytes, ct);
                 }
 
                 if (string.IsNullOrEmpty(modelInput))
@@ -198,19 +198,19 @@ namespace Tripo3D.Editor
                 if (imageBytes != null && imageBytes.Length > 0)
                 {
                     Set("Uploading reference image for semantic parts...", 18f, TripoJobState.Uploading, record);
-                    refImage = await TripoApiClient.UploadFileAsync(imagePath ?? "character.png", imageBytes, ct).ConfigureAwait(false);
+                    refImage = await TripoApiClient.UploadFileAsync(imagePath ?? "character.png", imageBytes, ct);
                 }
 
                 Set("Segmenting mesh into props...", 25f, TripoJobState.Creating, record);
-                var segId = await TripoApiClient.SegmentMeshAsync(modelInput, granularity, splitByConnectivity, refImage, ct).ConfigureAwait(false);
+                var segId = await TripoApiClient.SegmentMeshAsync(modelInput, granularity, splitByConnectivity, refImage, ct);
                 record.taskId = segId;
                 Remember(segId, record.name, TripoJobKind.PropDetect);
                 LastSegmentTaskId = segId;
-                var segTask = await PollAsync(segId, record, ct).ConfigureAwait(false);
+                var segTask = await PollAsync(segId, record, ct);
 
                 var names = TripoJson.ExtractPartNames(TripoApiClient.LastRawJson);
                 Texture2D preview = null;
-                var imported = await ImportSegmentResult(segTask, record, ct).ConfigureAwait(false);
+                var imported = await ImportSegmentResult(segTask, record, ct);
                 if (imported.previewTexture != null)
                     preview = imported.previewTexture;
                 if (names.Length == 0)
@@ -224,8 +224,8 @@ namespace Tripo3D.Editor
                     if (onParts != null)
                         onParts(names, preview);
                     Set("Detected " + names.Length + " prop(s).", 100f, TripoJobState.Success, record);
-                }).ConfigureAwait(false);
-            }).ConfigureAwait(false);
+                });
+            });
         }
 
         public static async void RunExtractProps(string[] partNames, string slug, Action<TripoPropPart[]> onDone)
@@ -245,9 +245,9 @@ namespace Tripo3D.Editor
             await Run(TripoJobKind.PropExtract, (slug ?? "props") + "_extract", async (record, ct) =>
             {
                 Set("Completing " + partNames.Length + " prop(s) (watertight)...", 12f, TripoJobState.Creating, record);
-                var completeId = await TripoApiClient.CompleteMeshAsync(LastSegmentTaskId, partNames, "ai_completion", ct).ConfigureAwait(false);
+                var completeId = await TripoApiClient.CompleteMeshAsync(LastSegmentTaskId, partNames, "ai_completion", ct);
                 record.taskId = completeId;
-                var completeTask = await PollAsync(completeId, record, ct).ConfigureAwait(false);
+                var completeTask = await PollAsync(completeId, record, ct);
 
                 var results = new List<TripoPropPart>();
                 for (var i = 0; i < partNames.Length; i++)
@@ -256,21 +256,21 @@ namespace Tripo3D.Editor
                     Set("Exporting prop " + part + " (" + (i + 1) + "/" + partNames.Length + ")...", 40f + 50f * i / partNames.Length, TripoJobState.Downloading, record);
                     try
                     {
-                        var convertId = await TripoApiClient.ConvertAsync(completeId, "GLB", ct, new[] { part }).ConfigureAwait(false);
-                        var converted = await PollAsync(convertId, record, ct).ConfigureAwait(false);
+                        var convertId = await TripoApiClient.ConvertAsync(completeId, "GLB", ct, new[] { part });
+                        var converted = await PollAsync(convertId, record, ct);
                         var url = converted.output != null ? converted.output.BestModelUrl : null;
                         if (string.IsNullOrEmpty(url))
                             url = completeTask.output != null ? completeTask.output.BestModelUrl : null;
                         if (string.IsNullOrEmpty(url))
                             continue;
 
-                        var glb = await TripoApiClient.DownloadAsync(url, ct).ConfigureAwait(false);
+                        var glb = await TripoApiClient.DownloadAsync(url, ct);
                         byte[] preview = null;
                         if (converted.output != null && !string.IsNullOrEmpty(converted.output.rendered_image_url))
                         {
                             try
                             {
-                                preview = await TripoApiClient.DownloadAsync(converted.output.rendered_image_url, ct).ConfigureAwait(false);
+                                preview = await TripoApiClient.DownloadAsync(converted.output.rendered_image_url, ct);
                             }
                             catch
                             {
@@ -287,7 +287,7 @@ namespace Tripo3D.Editor
                                 assetPath = imported.assetPath,
                                 preview = imported.previewTexture
                             });
-                        }).ConfigureAwait(false);
+                        });
                     }
                     catch (Exception ex)
                     {
@@ -300,7 +300,7 @@ namespace Tripo3D.Editor
                     var url = completeTask.output != null ? completeTask.output.BestModelUrl : null;
                     if (string.IsNullOrEmpty(url))
                         throw new TripoException("Prop completion succeeded but no model URL was returned.");
-                    var glb = await TripoApiClient.DownloadAsync(url, ct).ConfigureAwait(false);
+                    var glb = await TripoApiClient.DownloadAsync(url, ct);
                     await OnMain(() =>
                     {
                         var imported = WriteAssets((slug ?? "props") + "_completed", glb, null, null);
@@ -310,7 +310,7 @@ namespace Tripo3D.Editor
                             selected = true,
                             assetPath = imported.assetPath
                         });
-                    }).ConfigureAwait(false);
+                    });
                 }
 
                 await OnMain(() =>
@@ -318,8 +318,8 @@ namespace Tripo3D.Editor
                     if (onDone != null)
                         onDone(results.ToArray());
                     Set("Extracted " + results.Count + " prop(s).", 100f, TripoJobState.Success, record);
-                }).ConfigureAwait(false);
-            }).ConfigureAwait(false);
+                });
+            });
         }
 
         public static void RequestAiRig(string glbAssetOrDiskPath, bool showDialog = true)
@@ -368,32 +368,34 @@ namespace Tripo3D.Editor
 
             if (kind != TripoJobKind.BlenderRig && !TripoSettings.HasApiKey)
             {
-                EditorUtility.DisplayDialog("Tripo Studio", "Add your Tripo API key in the Settings tab first.", "OK");
+                EditorUtility.DisplayDialog("Tripo Studio", "Add your Tripo3D API key in the Settings tab first.", "OK");
                 return;
             }
 
+            TripoApiClient.UseKey(TripoSettings.ApiKey);
             _busy = true;
             _cts = new CancellationTokenSource();
             var record = TripoSession.instance.Add(kind, name);
             Notify();
             try
             {
-                await work(record, _cts.Token).ConfigureAwait(false);
+                await work(record, _cts.Token);
             }
             catch (OperationCanceledException)
             {
-                await OnMain(() => Set("Cancelled.", Progress, TripoJobState.Cancelled, record)).ConfigureAwait(false);
+                await OnMain(() => Set("Cancelled.", Progress, TripoJobState.Cancelled, record));
             }
             catch (TripoException ex)
             {
                 var message = ex.Message;
                 if (!string.IsNullOrEmpty(ex.Suggestion))
                     message += " " + ex.Suggestion;
-                await OnMain(() => Fail(record, message)).ConfigureAwait(false);
+                await OnMain(() => Fail(record, message));
             }
             catch (Exception ex)
             {
-                await OnMain(() => Fail(record, ex.Message)).ConfigureAwait(false);
+                Debug.LogError("[Tripo3D] " + ex);
+                await OnMain(() => Fail(record, ex.Message));
             }
             finally
             {
@@ -410,7 +412,7 @@ namespace Tripo3D.Editor
                     {
                         ClearActive();
                         Notify();
-                    }).ConfigureAwait(false);
+                    });
                 }
                 catch (Exception ex)
                 {
@@ -424,11 +426,11 @@ namespace Tripo3D.Editor
             while (true)
             {
                 ct.ThrowIfCancellationRequested();
-                var task = await TripoApiClient.GetTaskAsync(taskId, ct).ConfigureAwait(false);
+                var task = await TripoApiClient.GetTaskAsync(taskId, ct);
                 var status = (task.status ?? string.Empty).ToLowerInvariant();
                 var progress = Mathf.Clamp(task.progress, 0, 100);
                 var mapped = 15f + progress * 0.7f;
-                await OnMain(() => Set("Generating... " + status + " " + progress + "%", mapped, TripoJobState.Running, record)).ConfigureAwait(false);
+                await OnMain(() => Set("Generating... " + status + " " + progress + "%", mapped, TripoJobState.Running, record));
 
                 if (status == "success")
                     return task;
@@ -438,7 +440,7 @@ namespace Tripo3D.Editor
                     throw new TripoException(error, task.error_code);
                 }
 
-                await Task.Delay(2000, ct).ConfigureAwait(false);
+                await Task.Delay(2000, ct);
             }
         }
 
@@ -451,14 +453,14 @@ namespace Tripo3D.Editor
                 throw new TripoException("Task succeeded but no model URL was returned. Download immediately — URLs expire after 5 minutes.");
 
             Set("Downloading GLB...", 88f, TripoJobState.Downloading, record);
-            var glb = await TripoApiClient.DownloadAsync(modelUrl, ct).ConfigureAwait(false);
+            var glb = await TripoApiClient.DownloadAsync(modelUrl, ct);
 
             byte[] preview = null;
             if (!string.IsNullOrEmpty(output.rendered_image_url))
             {
                 try
                 {
-                    preview = await TripoApiClient.DownloadAsync(output.rendered_image_url, ct).ConfigureAwait(false);
+                    preview = await TripoApiClient.DownloadAsync(output.rendered_image_url, ct);
                 }
                 catch (Exception ex)
                 {
@@ -472,11 +474,11 @@ namespace Tripo3D.Editor
                 try
                 {
                     Set("Converting to FBX...", 92f, TripoJobState.Downloading, record);
-                    var convertId = await TripoApiClient.ConvertAsync(task.task_id, "FBX", ct).ConfigureAwait(false);
-                    var converted = await PollAsync(convertId, record, ct).ConfigureAwait(false);
+                    var convertId = await TripoApiClient.ConvertAsync(task.task_id, "FBX", ct);
+                    var converted = await PollAsync(convertId, record, ct);
                     var fbxUrl = converted.output != null ? converted.output.BestModelUrl : null;
                     if (!string.IsNullOrEmpty(fbxUrl))
-                        fbx = await TripoApiClient.DownloadAsync(fbxUrl, ct).ConfigureAwait(false);
+                        fbx = await TripoApiClient.DownloadAsync(fbxUrl, ct);
                 }
                 catch (Exception ex)
                 {
@@ -502,7 +504,7 @@ namespace Tripo3D.Editor
                     PlaceInScene(imported.assetPath);
                 Set("Imported " + imported.assetPath, 100f, TripoJobState.Success, record);
                 EditorGUIUtility.PingObject(AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(imported.assetPath));
-            }).ConfigureAwait(false);
+            });
 
             if (options.RigInBlender && !string.IsNullOrEmpty(LastGlbPath))
             {
@@ -510,7 +512,7 @@ namespace Tripo3D.Editor
                 {
                     Set("Queuing Blender rig job for " + TripoSettings.AiProviderLabel + "...", 100f, TripoJobState.Rigging, record);
                     RequestAiRig(LastGlbPath, false);
-                }).ConfigureAwait(false);
+                });
             }
         }
 
@@ -522,13 +524,13 @@ namespace Tripo3D.Editor
                 return (null, null);
 
             Set("Downloading segmented mesh...", 88f, TripoJobState.Downloading, record);
-            var glb = await TripoApiClient.DownloadAsync(url, ct).ConfigureAwait(false);
+            var glb = await TripoApiClient.DownloadAsync(url, ct);
             byte[] preview = null;
             if (output != null && !string.IsNullOrEmpty(output.rendered_image_url))
             {
                 try
                 {
-                    preview = await TripoApiClient.DownloadAsync(output.rendered_image_url, ct).ConfigureAwait(false);
+                    preview = await TripoApiClient.DownloadAsync(output.rendered_image_url, ct);
                 }
                 catch
                 {
@@ -539,7 +541,7 @@ namespace Tripo3D.Editor
             await OnMain(() =>
             {
                 imported = WriteAssets("segmented_props", glb, preview, null);
-            }).ConfigureAwait(false);
+            });
             return (imported.assetPath, imported.previewTexture);
         }
 
@@ -585,11 +587,9 @@ namespace Tripo3D.Editor
             Texture2D previewTexture = null;
             if (preview != null && preview.Length > 0)
             {
-                previewPath = folder + "/" + slug + "_preview.png";
-                File.WriteAllBytes(ToDisk(previewPath), preview);
-                previewTexture = new Texture2D(2, 2);
-                previewTexture.LoadImage(preview);
-                previewTexture.name = slug + "_preview";
+                var written = WritePreview(folder, slug, preview);
+                previewPath = written.path;
+                previewTexture = written.texture;
             }
 
             string fbxPath = null;
@@ -603,6 +603,48 @@ namespace Tripo3D.Editor
 
             var assetPath = !string.IsNullOrEmpty(fbxPath) ? fbxPath : glbPath;
             return (assetPath, previewPath, previewTexture, glbPath);
+        }
+
+        static (string path, Texture2D texture) WritePreview(string folder, string slug, byte[] bytes)
+        {
+            var tex = new Texture2D(2, 2);
+            var loaded = tex.LoadImage(bytes);
+            if (loaded)
+            {
+                var png = tex.EncodeToPNG();
+                var path = folder + "/" + slug + "_preview.png";
+                File.WriteAllBytes(ToDisk(path), png ?? Array.Empty<byte>());
+                tex.name = slug + "_preview";
+                return (path, tex);
+            }
+
+            UnityEngine.Object.DestroyImmediate(tex);
+            var ext = DetectImageExtension(bytes);
+            if (ext == ".png" || ext == ".jpg")
+            {
+                var path = folder + "/" + slug + "_preview" + ext;
+                File.WriteAllBytes(ToDisk(path), bytes);
+                return (path, null);
+            }
+
+            Debug.LogWarning("[Tripo3D] Preview is " + ext.Trim('.') + ", not PNG/JPEG. Skipping Project import (Tripo often returns WebP).");
+            return (null, null);
+        }
+
+        static string DetectImageExtension(byte[] bytes)
+        {
+            if (bytes == null || bytes.Length < 12)
+                return ".bin";
+            if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47)
+                return ".png";
+            if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF)
+                return ".jpg";
+            if (bytes.Length >= 12 && bytes[0] == (byte)'R' && bytes[1] == (byte)'I' && bytes[2] == (byte)'F' && bytes[3] == (byte)'F'
+                && bytes[8] == (byte)'W' && bytes[9] == (byte)'E' && bytes[10] == (byte)'B' && bytes[11] == (byte)'P')
+                return ".webp";
+            if (bytes[0] == (byte)'G' && bytes[1] == (byte)'I' && bytes[2] == (byte)'F')
+                return ".gif";
+            return ".bin";
         }
 
         static void PlaceInScene(string assetPath)
