@@ -188,12 +188,22 @@
 
 .btn-row {
     flex-direction: row;
+    align-items: center;
     margin-top: 6px;
 }
 
 .btn-row > .secondary-btn {
     margin-top: 0;
     margin-right: 6px;
+}
+
+.btn-row > .secondary-btn:last-child {
+    margin-right: 0;
+}
+
+.btn-row-spacer {
+    flex-grow: 1;
+    min-width: 8px;
 }
 
 .secondary-btn {

@@ -466,12 +466,6 @@ namespace Tripo3D.Editor
                 RebuildJobs();
             }) { text = "Refresh job status" };
             refreshJobs.AddToClassList("secondary-btn");
-            var cancelJobs = new Button(() =>
-            {
-                TripoJobRunner.Cancel();
-                RebuildJobs();
-            }) { text = "Cancel running jobs" };
-            cancelJobs.AddToClassList("generate-btn");
             var clearJobs = new Button(() =>
             {
                 if (!EditorUtility.DisplayDialog("Clear jobs", "Remove all jobs from this list? Imported models stay in the project.", "Clear", "Cancel"))
@@ -480,9 +474,18 @@ namespace Tripo3D.Editor
                 RebuildJobs();
             }) { text = "Clear jobs" };
             clearJobs.AddToClassList("secondary-btn");
+            var spacer = new VisualElement();
+            spacer.AddToClassList("btn-row-spacer");
+            var cancelJobs = new Button(() =>
+            {
+                TripoJobRunner.Cancel();
+                RebuildJobs();
+            }) { text = "Cancel running jobs" };
+            cancelJobs.AddToClassList("secondary-btn");
             actions.Add(refreshJobs);
-            actions.Add(cancelJobs);
             actions.Add(clearJobs);
+            actions.Add(spacer);
+            actions.Add(cancelJobs);
             card.Add(actions);
             _jobsList = new VisualElement();
             card.Add(_jobsList);
