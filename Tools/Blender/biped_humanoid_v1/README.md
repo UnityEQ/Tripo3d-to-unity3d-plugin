@@ -8,7 +8,7 @@ Run from the project root. Replace the quoted placeholders with the job's paths.
 blender.exe --background --factory-startup --python Tools/Blender/biped_humanoid_v1/run.py -- --glb "INPUT.glb" --out "WORK_DIRECTORY" --slug "CHARACTER" --schema "Biped Humanoid Rig v1 - Reference.json"
 ```
 
-This resets the headless scene, imports the GLB, performs a proportional fit and automatic weighting, prepares materials, and writes an initial FBX, blend, manifest and basic report. It does **not** author the four gameplay clips or finish anatomical fitting. Use a working directory for this first pass so it does not replace an approved export. Review material graphs before accepting the helper's flattening behavior.
+This resets the headless scene, imports the GLB, performs a proportional fit and automatic weighting, then `refine_weights` (opposite-limb / finger isolation, hinge-band spread, four-influence elf prune). It does **not** author the four gameplay clips or finish posed joint-band painting (§4b). Use a working directory for this first pass so it does not replace an approved export. Review material graphs before accepting the helper's flattening behavior.
 
 ## Inspect or validate a saved checkpoint
 

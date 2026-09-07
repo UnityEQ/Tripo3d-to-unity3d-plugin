@@ -83,6 +83,12 @@ CTRL_PARENTS = {
     "CTRL_Foot.R": "Root",
     "CTRL_LegPole.R": "Root",
 }
+AXIAL_BONES = {"Hips", "Spine", "Chest", "Neck", "Head"}
+LEG_STEMS = {"Thigh", "Shin", "Foot", "Toes"}
+ARM_STEMS = {"Clavicle", "UpperArm", "Forearm", "Hand"}
+FINGER_STEMS = ("Thumb", "Index", "Middle", "Ring", "Little")
+WEIGHT_DUST = 0.01
+WEIGHT_LIMIT = 4
 
 
 def log(msg):
@@ -198,10 +204,27 @@ def xform(vec, scale, offset):
     return Vector(vec) * scale + offset
 
 
-def build_armature(schema_bones, fit, with_ik):
-    arm_data = bpy.data.armatures.new("Armature")
+def name_geo_meshes(meshes, slug):
+    """Industry object names: GEO-<slug> or GEO-<slug>-N. Never leave Cube / Sketchfab_model."""
+    stem = (slug or "character").strip() or "character"
+    if len(meshes) == 1:
+        meshes[0].name = "GEO-" + stem
+        if meshes[0].data is not None:
+            meshes[0].data.name = "GEO-" + stem
+        return
+    for i, mesh in enumerate(meshes, start=1):
+        label = "GEO-%s-%d" % (stem, i)
+        mesh.name = label
+        if mesh.data is not None:
+            mesh.data.name = label
+
+
+def build_armature(schema_bones, fit, with_ik, name="RIG-biped_humanoid_v1"):
+    if not name:
+        name = "RIG-biped_humanoid_v1"
+    arm_data = bpy.data.armatures.new(name)
     arm_data.display_type = "OCTAHEDRAL"
-    arm_obj = bpy.data.objects.new("Armature", arm_data)
+    arm_obj = bpy.data.objects.new(name, arm_data)
     bpy.context.collection.objects.link(arm_obj)
     bpy.context.view_layer.objects.active = arm_obj
     bpy.ops.object.mode_set(mode="EDIT")
@@ -296,6 +319,13 @@ def heat_bind(meshes, arm_obj):
             dec = proxy.modifiers.new("TripoDecimate", "DECIMATE")
             dec.ratio = max(0.02, min(1.0, 25000.0 / float(nverts)))
             bpy.ops.object.modifier_apply(modifier=dec.name)
+            bpy.ops.object.mode_set(mode="EDIT")
+            bpy.ops.mesh.select_all(action="SELECT")
+            try:
+                bpy.ops.mesh.merge_by_distance(threshold=1e-4)
+            except Exception:
+                pass
+            bpy.ops.object.mode_set(mode="OBJECT")
             source = proxy
             log("weight proxy for %s: %s -> %s verts" % (mesh.name, nverts, len(proxy.data.vertices)))
 
@@ -310,7 +340,7 @@ def heat_bind(meshes, arm_obj):
             transfer_weights(proxy, mesh, arm_obj)
             bpy.data.objects.remove(proxy, do_unlink=True)
 
-        prune_influences(mesh, 4, arm_obj)
+        refine_weights(mesh, arm_obj)
 
 
 def transfer_weights(proxy, mesh, arm_obj):
@@ -334,9 +364,11 @@ def transfer_weights(proxy, mesh, arm_obj):
     mod.object = arm_obj
     mod.use_vertex_groups = True
     mod.use_bone_envelopes = False
+    mod.use_deform_preserve_volume = False
 
 
 def prune_influences(mesh, limit, arm_obj=None):
+    """Elf prune: subtract the (limit+1)th weight, clamp, renormalize. Fallback: keep top `limit`."""
     vg_index = {g.index: g for g in mesh.vertex_groups}
     if arm_obj is not None:
         deform = {b.name for b in arm_obj.data.bones if b.use_deform}
@@ -344,22 +376,252 @@ def prune_influences(mesh, limit, arm_obj=None):
     for v in mesh.data.vertices:
         items = []
         for g in v.groups:
-            if g.group in vg_index:
+            if g.group in vg_index and math.isfinite(g.weight) and g.weight > WEIGHT_DUST:
                 items.append((g.weight, g.group))
         if not items:
             continue
-        items.sort(reverse=True)
-        keep = items[:limit]
-        drop = items[limit:]
-        for w, gi in drop:
-            if gi in vg_index:
-                vg_index[gi].remove([v.index])
-        total = sum(w for w, _ in keep)
-        if total <= 1e-8:
-            continue
+        keep = _elf_keep(items, limit)
+        keep_ids = {gi for _, gi in keep}
+        for g in list(v.groups):
+            if g.group in vg_index and g.group not in keep_ids:
+                vg_index[g.group].remove([v.index])
         for w, gi in keep:
-            if gi in vg_index:
-                vg_index[gi].add([v.index], w / total, "REPLACE")
+            vg_index[gi].add([v.index], w, "REPLACE")
+
+
+def _elf_keep(items, limit):
+    items = sorted(items, reverse=True)
+    if len(items) <= limit:
+        return _normalize_pairs(items)
+    fifth = items[limit][0]
+    subtracted = [(max(0.0, w - fifth), gi) for w, gi in items]
+    subtracted = [(w, gi) for w, gi in subtracted if w > WEIGHT_DUST]
+    if not subtracted:
+        return _normalize_pairs(items[:limit])
+    if len(subtracted) > limit:
+        subtracted = subtracted[:limit]
+    return _normalize_pairs(subtracted)
+
+
+def _normalize_pairs(items):
+    total = sum(w for w, _ in items)
+    if total <= 1e-8:
+        return []
+    return [(w / total, gi) for w, gi in items]
+
+
+def bone_side(name):
+    if name.endswith(".L"):
+        return "L"
+    if name.endswith(".R"):
+        return "R"
+    return ""
+
+
+def bone_stem(name):
+    base = name[:-2] if bone_side(name) else name
+    return "".join(c for c in base if not c.isdigit())
+
+
+def bone_digit(name):
+    stem = bone_stem(name)
+    return stem if stem in FINGER_STEMS else ""
+
+
+def bone_family(name):
+    if name in AXIAL_BONES or name == "Root":
+        return "axial"
+    side = bone_side(name)
+    stem = bone_stem(name)
+    if stem in LEG_STEMS:
+        return "leg." + side
+    if stem in ARM_STEMS or stem in FINGER_STEMS:
+        return "arm." + side
+    return "other"
+
+
+def _seg_dist(point, head, tail):
+    ab = tail - head
+    denom = ab.length_squared
+    if denom < 1e-12:
+        return (point - head).length
+    t = max(0.0, min(1.0, (point - head).dot(ab) / denom))
+    return (point - (head + ab * t)).length
+
+
+def _deform_segments(arm_obj):
+    mw = arm_obj.matrix_world
+    segs = []
+    for bone in arm_obj.data.bones:
+        if not bone.use_deform or bone.name == "Root" or bone.name.startswith("CTRL_"):
+            continue
+        segs.append((bone.name, mw @ bone.head_local, mw @ bone.tail_local))
+    return segs
+
+
+def _nearest_bones(mesh, segs):
+    mw = mesh.matrix_world
+    nearest = []
+    for vert in mesh.data.vertices:
+        point = mw @ vert.co
+        best_name, best_d = segs[0][0], 1e9
+        for name, head, tail in segs:
+            d = _seg_dist(point, head, tail)
+            if d < best_d:
+                best_name, best_d = name, d
+        nearest.append(best_name)
+    return nearest
+
+
+def _read_weights(mesh, deform_index):
+    rows = []
+    for vert in mesh.data.vertices:
+        row = {}
+        for g in vert.groups:
+            name = deform_index.get(g.group)
+            if name and math.isfinite(g.weight) and g.weight > 0:
+                row[name] = g.weight
+        rows.append(row)
+    return rows
+
+
+def _write_weights(mesh, arm_obj, rows):
+    deform = [b.name for b in arm_obj.data.bones if b.use_deform]
+    groups = {g.name: g for g in mesh.vertex_groups}
+    for name in deform:
+        if name not in groups:
+            groups[name] = mesh.vertex_groups.new(name=name)
+    index_of = {g.name: g.index for g in mesh.vertex_groups}
+    for name in deform:
+        gi = index_of.get(name)
+        if gi is None:
+            continue
+        members = [v.index for v in mesh.data.vertices if any(g.group == gi for g in v.groups)]
+        if members:
+            groups[name].remove(members)
+    buckets = {}
+    for i, row in enumerate(rows):
+        for name, weight in row.items():
+            if name not in groups or weight <= 1e-8:
+                continue
+            key = (name, round(float(weight), 4))
+            buckets.setdefault(key, []).append(i)
+    for (name, q), verts in buckets.items():
+        groups[name].add(verts, q, "REPLACE")
+
+
+def _allowed_bones(nearest):
+    family = bone_family(nearest)
+    digit = bone_digit(nearest)
+    side = bone_side(nearest)
+    allowed = set(AXIAL_BONES)
+    if family == "axial":
+        allowed.update(("Thigh.L", "Thigh.R", "Clavicle.L", "Clavicle.R"))
+        return allowed
+    if family.startswith("leg."):
+        allowed.update("%s.%s" % (stem, side) for stem in LEG_STEMS)
+        return allowed
+    if family.startswith("arm."):
+        allowed.update("%s.%s" % (stem, side) for stem in ARM_STEMS)
+        if digit:
+            allowed.update("%s%d.%s" % (digit, i, side) for i in (1, 2, 3))
+        else:
+            for stem in FINGER_STEMS:
+                allowed.update("%s%d.%s" % (stem, i, side) for i in (1, 2, 3))
+        return allowed
+    return allowed
+
+
+def _isolate_row(row, nearest):
+    allowed = _allowed_bones(nearest)
+    isolated = {name: w for name, w in row.items() if name in allowed}
+    if not isolated and nearest:
+        isolated = {nearest: 1.0}
+    return isolated
+
+
+def _smoothstep(t, a, b):
+    if b <= a:
+        return 0.0 if t < a else 1.0
+    x = max(0.0, min(1.0, (t - a) / (b - a)))
+    return x * x * (3.0 - 2.0 * x)
+
+
+def _hinge_pairs():
+    pairs = []
+    for child, parent in CORE_PARENTS.items():
+        if parent and parent != "Root" and parent in CORE_PARENTS:
+            pairs.append((parent, child))
+    return pairs
+
+
+def _spread_hinges(mesh, segs, rows):
+    lookup = {name: (head, tail) for name, head, tail in segs}
+    pairs = [(p, c) for p, c in _hinge_pairs() if p in lookup and c in lookup]
+    if not pairs:
+        return
+    mw = mesh.matrix_world
+    for i, vert in enumerate(mesh.data.vertices):
+        row = rows[i]
+        point = mw @ vert.co
+        best = None
+        best_d = 1e9
+        for parent, child in pairs:
+            if parent not in row and child not in row:
+                continue
+            ph, pt = lookup[parent]
+            ch, ct = lookup[child]
+            d = min(_seg_dist(point, ph, pt), _seg_dist(point, ch, ct))
+            radius = 0.55 * max((pt - ph).length, (ct - ch).length, 1e-4)
+            if d < best_d and d <= radius:
+                best, best_d = (parent, child, ph, pt, ct), d
+        if best is None:
+            continue
+        parent, child, ph, joint, ct = best[0], best[1], best[2], best[3], best[4]
+        axis = ct - ph
+        length = axis.length
+        if length < 1e-6:
+            continue
+        t = (point - ph).dot(axis) / (length * length)
+        t_joint = (joint - ph).length / length
+        band = 0.18
+        w_child = _smoothstep(t, t_joint - band, t_joint + band)
+        share = row.get(parent, 0.0) + row.get(child, 0.0)
+        if share <= WEIGHT_DUST:
+            share = 1.0
+            row = {k: v for k, v in row.items() if k not in (parent, child)}
+        row[parent] = (1.0 - w_child) * share
+        row[child] = w_child * share
+        rows[i] = row
+
+
+def _normalize_row(row):
+    cleaned = {n: w for n, w in row.items() if math.isfinite(w) and w > WEIGHT_DUST}
+    total = sum(cleaned.values())
+    if total <= 1e-8:
+        return {}
+    return {n: w / total for n, w in cleaned.items()}
+
+
+def refine_weights(mesh, arm_obj):
+    """§4a + hinge spread + §4c. Isolation before prune so leaked limbs cannot occupy a slot."""
+    segs = _deform_segments(arm_obj)
+    if not segs:
+        return
+    deform = {b.name for b in arm_obj.data.bones if b.use_deform}
+    deform_index = {g.index: g.name for g in mesh.vertex_groups if g.name in deform}
+    nearest = _nearest_bones(mesh, segs)
+    rows = _read_weights(mesh, deform_index)
+    for i, row in enumerate(rows):
+        rows[i] = _isolate_row(row, nearest[i])
+    _spread_hinges(mesh, segs, rows)
+    for i, row in enumerate(rows):
+        items = _elf_keep([(w, n) for n, w in row.items()], WEIGHT_LIMIT)
+        rows[i] = {n: w for w, n in items} if items else ({nearest[i]: 1.0} if nearest[i] else {})
+        if not rows[i] and nearest[i]:
+            rows[i] = {nearest[i]: 1.0}
+    _write_weights(mesh, arm_obj, rows)
+    log("refined weights on %s (%s verts)" % (mesh.name, len(rows)))
 
 
 def unpack_and_flatten_materials(meshes, out_dir, slug):
@@ -586,12 +848,13 @@ def main():
         meshes = import_glb(args.glb)
         for m in meshes:
             apply_object_transforms(m)
+        name_geo_meshes(meshes, slug)
 
         schema, bones = load_schema(schema_path)
         fit = compute_fit(meshes, bones)
         log("fit scale=%.4f height=%.4f" % (fit["scale"], fit["mesh_height"]))
 
-        arm = build_armature(bones, fit, with_ik)
+        arm = build_armature(bones, fit, with_ik, name="RIG-" + slug)
         if with_ik:
             add_ik(arm)
         heat_bind(meshes, arm)

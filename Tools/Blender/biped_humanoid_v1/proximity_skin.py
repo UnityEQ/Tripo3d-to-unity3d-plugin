@@ -149,7 +149,7 @@ def main():
             log("%s verts %s" % (mesh.name, pts.shape[0]))
             idx, w = assign_weights(pts, names, segs, k=4)
             apply_groups(mesh, names, idx, w)
-            pipeline.prune_influences(mesh, 4, arm)
+            pipeline.refine_weights(mesh, arm)
             ensure_armature_mod(mesh, arm)
             last_u, last_t = count_unweighted(mesh, arm)
             log("unweighted %s / %s" % (last_u, last_t))

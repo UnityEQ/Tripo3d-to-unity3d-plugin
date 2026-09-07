@@ -88,7 +88,7 @@ def main():
                 heat_original(mesh, arm)
                 unweighted, total = count_unweighted(mesh, arm)
                 log("after original heat unweighted %s / %s" % (unweighted, total))
-            pipeline.prune_influences(mesh, 4, arm)
+            pipeline.refine_weights(mesh, arm)
             unweighted, total = count_unweighted(mesh, arm)
             log("final unweighted %s / %s" % (unweighted, total))
 

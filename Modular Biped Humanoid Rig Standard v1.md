@@ -122,6 +122,65 @@ The following 52 names and parents are mandatory in the v1 export skeleton. Capi
 | `Foot.R` | `Shin.R` | Yes |
 | `Toes.R` | `Foot.R` | Yes |
 
+### Naming convention (v1 — do not invent a second scheme)
+
+This is a **Blender-authored, Unity Humanoid-exported** skeleton. Names are PascalCase anatomical tokens plus Blender’s official side suffix. Do not Mixamo-rename (`mixamorig:LeftArm`), do not Unreal-rename (`upperarm_l`, `calf_l`, `ball_l`), do not Rigify-rename (`DEF-upper_arm.L`). Map in the engine; do not retitle the export bones.
+
+**Tokens**
+
+| Kind | Pattern | Examples |
+|---|---|---|
+| Deform / Root bones | `Name` or `Name.L` / `Name.R` | `Hips`, `UpperArm.L`, `Thumb2.R` |
+| Animator IK controls | `CTRL_` + role + `.L`/`.R` | `CTRL_Hand.L`, `CTRL_ArmPole.R` |
+| Widget meshes (not exported) | `WGT_` + the control they draw | `WGT_CTRL_Hand.L` |
+| Mechanism (if you add any) | `MCH_` + role + `.L`/`.R` | `MCH_Elbow.L` — **do not export, do not skin** |
+| Extra anatomy | `EXT_` + role + optional `.L`/`.R` | `EXT_Tail`, `EXT_Ear.L` |
+| IK switches (armature **custom properties**, not bones) | `Arm_IK_L`, `Arm_IK_R`, `Leg_IK_L`, `Leg_IK_R` | `_L`/`_R` here because these are RNA keys, not bone names |
+| Actions / Unity clips | exact PascalCase, no spaces | `Idle`, `Run`, `Jump`, `SwordSlash` |
+| Armature object + datablock | `RIG-<slug>` | `RIG-elf` |
+| Skinned mesh object + mesh datablock | `GEO-<slug>` (one mesh) or `GEO-<slug>-<part>` | `GEO-elf`, `GEO-elf-hair` |
+| Vertex groups | **identical** to the deform bone that owns them | group `Forearm.L` ↔ bone `Forearm.L` |
+| Armature modifier | `Armature`, one only | |
+| Files | `<slug>_rigged.blend`, `<slug>.fbx`, `<slug>_texture.png` | |
+
+**Rules**
+
+- ASCII letters, digits, underscore, and a single `.L` / `.R` side suffix. No spaces, no `Bone`, no `Bone.001`, no character name inside the bone (`Elf_Hips` is wrong).
+- Side is always the **suffix** `.L` / `.R` (Blender X-Axis Mirror / Flip Names). Never `LeftUpperArm` on the Blender bone, never `upperarm_l`.
+- Numbered fingers start at **1** = proximal (knuckle), **2** = intermediate, **3** = distal (tip). There is no joint 0 and no `Pinky` — Unity’s slot is Little, so the bone is `Little1.L`.
+- Vertex groups, pose-bone names, and FBX node names are the same string as the Blender bone. Heat bind already names groups from bones; do not rename groups afterward.
+- Only `use_deform` bones are skinned and exported (`use_armature_deform_only=True`). `Root`, `CTRL_*`, `MCH_*`, `WGT_*` stay out of weights and out of the FBX deform set.
+- Collections, if you create them: `RIG`, `GEO`, `WGT`. Skip `WGT_*` objects on export.
+
+**Unity Humanoid map (exact — this is how the importer is wired)**
+
+Unity slots are `Left`/`Right` prefixes. Our bones stay `.L`/`.R`. Do not rename the Blender bones to the Unity column.
+
+| Unity `HumanBodyBones` | v1 bone |
+|---|---|
+| Hips, Spine, Chest, Neck, Head | `Hips`, `Spine`, `Chest`, `Neck`, `Head` |
+| Left/Right Shoulder | `Clavicle.L` / `Clavicle.R` |
+| Left/Right UpperArm | `UpperArm.L` / `UpperArm.R` |
+| Left/Right LowerArm | `Forearm.L` / `Forearm.R` |
+| Left/Right Hand | `Hand.L` / `Hand.R` |
+| Left/Right UpperLeg | `Thigh.L` / `Thigh.R` |
+| Left/Right LowerLeg | `Shin.L` / `Shin.R` |
+| Left/Right Foot | `Foot.L` / `Foot.R` |
+| Left/Right Toes | `Toes.L` / `Toes.R` |
+| Left/Right {Thumb,Index,Middle,Ring,Little}{Proximal,Intermediate,Distal} | `{Thumb,Index,Middle,Ring,Little}{1,2,3}.L` / `.R` |
+
+No `UpperChest`, `Jaw`, or eye bones in v1. Do not add them to “match Unity.” Optional `EXT_` bones are not Humanoid-mapped.
+
+**Blender object names (set these; the helper does on first bind)**
+
+After import, rename so the scene is not `Armature` + `Cube` + `Sketchfab_model`:
+
+1. Armature object and `armature` datablock → `RIG-<slug>`.
+2. The skinned mesh object and mesh datablock → `GEO-<slug>` (or `GEO-<slug>-<part>` if several). Weight proxies stay `*_weight_proxy` / `*_wproxy` and are deleted after transfer.
+3. IK widgets, if you build them → `WGT_CTRL_Hand.L` and the same pattern for the other seven controls.
+
+`<slug>` is the job slug (sanitized filename stem). It does **not** appear inside bone names.
+
 ## Modules
 
 Keep fitting, skeleton construction, controls, skinning, validation, and export as separate stages. Each stage reads the same named-bone schema; anatomical landmarks and measurements are character-specific data, not hard-coded elf coordinates.
@@ -168,7 +227,7 @@ Mirror only when the mesh is sufficiently symmetric. Adapt asymmetrical anatomy 
 
 ### 3. Construct and bind
 
-Build the exact core hierarchy from the schema and apply fitted rest transforms. Validate names and parents before weighting. Save a per-character manifest containing rest matrices, inverse binds, module settings, source unit/axis conversions, and reference schema version.
+Build the exact core hierarchy from the schema and apply fitted rest transforms. Validate names and parents before weighting. Name the armature `RIG-<slug>` and the skinned mesh `GEO-<slug>` (see **Naming convention**). Save a per-character manifest containing rest matrices, inverse binds, module settings, source unit/axis conversions, and reference schema version.
 
 Bind only after mesh and armature object transforms are applied (rotation 0, scale 1). Heat on unapplied scale is a common warp source and a common `Bone Heat Weighting: failed to find solution` cause. `use_deform` is on for the 52 export bones only. `CTRL_*` / `WGT_*` / `Root` do not get vertex groups.
 
@@ -186,13 +245,15 @@ For dense meshes (>~40k verts) or a heat failure, use a **temporary proxy**, nev
 
 A successful heat bind is **not** a finished skin. Automatic weights leak across the crotch, armpits, and fingers and put a hard 50/50 ring at elbows and knees. That ring is what collapses into a spike or a candy-wrapper when the joint bends.
 
+`Tools/Blender/biped_humanoid_v1/run.py` `heat_bind` (and `repair_weights.py` / `proximity_skin.py`) then runs `refine_weights`: opposite-limb and remote isolation, distance-based hinge spread on parent/child pairs (replaces a 1-loop 50/50 ring with a ~3–5 loop band along the bone), elf four-influence prune, normalize. Do not skip that pass. Do not replace it with a whole-mesh Smooth. Dual quaternion / Corrective Smooth still do not ship.
+
 ### 4. Refine weights
 
 Unity export budget: **four influences per vertex**, weights finite, sum = 1, no dust weights. Unity discards influences ≲ 0.01 and then the vertex can underrun 1.0 and stretch. This schema has **no twist bones**; do not add `Thigh_Twist` / `ForeArm_Twist`. Candy-wrapper is controlled with spread joint bands plus the short-twist animation rule in §5b, not extra bones. Do not add `CORRECTIVE_SMOOTH` as a shipped deform: Unity will not play it.
 
 Preserve identical weights on coincident vertices that are the same UV-seam surface. Do not equalize intentionally separate overlapping shells (armor on a body, two thighs that merely touch) just because positions coincide.
 
-**Order matters.** Isolate leaks **before** Limit Total, or a leaked opposite-limb weight can occupy one of the four slots.
+**Order matters.** Isolate leaks **before** Limit Total, or a leaked opposite-limb weight can occupy one of the four slots. The helper already does 4a and 4c. **4b is still required** — pose the joints and check the mesh; automatic hinge spread is the first band, not a visual sign-off.
 
 #### 4a. Dust, then isolate (Python / Weight Paint)
 

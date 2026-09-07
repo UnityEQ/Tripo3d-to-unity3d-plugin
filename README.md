@@ -165,7 +165,7 @@ These three files are the contract. Do not skip them.
 | [Biped Humanoid Rig v1 - Reference.json](Biped%20Humanoid%20Rig%20v1%20-%20Reference.json) | Machine-readable schema `biped_humanoid_v1` (names, parents, reference matrices) |
 | [Lychee Model GLB - Blender FBX - Unity.md](Lychee%20Model%20GLB%20-%20Blender%20FBX%20-%20Unity.md) | Texture flatten, PNG unpack, FBX export flags, Unity import |
 
-Export skeleton is **52 bones** (`Root` + 51 deform). Names and parents are exact (`Hips`, `Clavicle.L`, `UpperArm.R`, full fingers, …). Optional eight `CTRL_*` IK bones stay Blender-only.
+Export skeleton is **52 bones** (`Root` + 51 deform). Names are PascalCase + Blender `.L`/`.R` (`Hips`, `Clavicle.L`, `UpperArm.R`, `Thumb1.L`, …) mapped to Unity Humanoid in the standard — do not Mixamo- or Unreal-rename. Armature object `RIG-<slug>`, mesh `GEO-<slug>`. Optional eight `CTRL_*` IK bones stay Blender-only.
 
 FBX for Unity: **-Z** forward, **Y** up, Copy+Embed textures, no leaf bones, deform-only armature. Unity import: Human avatar from this model, imported normals/tangents, animation on; **Idle** and **Run** loop, **Jump** and **SwordSlash** do not.
 
