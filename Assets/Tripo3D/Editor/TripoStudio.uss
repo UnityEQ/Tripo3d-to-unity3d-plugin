@@ -33,12 +33,6 @@
     margin-right: 8px;
 }
 
-.header-provider {
-    min-width: 180px;
-    max-width: 220px;
-    margin-right: 10px;
-}
-
 .ghost-btn {
     height: 24px;
     background-color: #2d2e38;
@@ -225,16 +219,6 @@
     color: #c6c8d2;
     font-size: 11px;
     white-space: normal;
-}
-
-.result-image {
-    margin-top: 8px;
-    height: 180px;
-    width: 100%;
-    flex-shrink: 0;
-    background-color: #1a1b22;
-    border-radius: 8px;
-    -unity-background-scale-mode: scale-to-fit;
 }
 
 .field-label {

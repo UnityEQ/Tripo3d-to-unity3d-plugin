@@ -34,7 +34,6 @@ namespace Tripo3D.Editor
         Label _statusLabel;
         ProgressBar _progress;
         Image _imageView;
-        Image _resultView;
         Label _fileLabel;
         Label _warningLabel;
         Button _generateButton;
@@ -68,11 +67,9 @@ namespace Tripo3D.Editor
         TextField _codexPathField;
         PopupField<string> _aiProviderField;
         PopupField<string> _aiProviderFieldSettings;
-        PopupField<string> _aiProviderFieldHeader;
         Label _aiStatusLabel;
         Label _blenderHint;
         Label _blenderExtra;
-        Button _imageRigButton;
         Button _pickGlbButton;
         Button _lastGlbButton;
         VisualElement _propList;
@@ -145,10 +142,6 @@ namespace Tripo3D.Editor
             setup.AddToClassList("ghost-btn");
             setup.tooltip = "Detect and install packages and tools this plugin needs.";
             header.Add(setup);
-
-            _aiProviderFieldHeader = MakeProviderField();
-            _aiProviderFieldHeader.AddToClassList("header-provider");
-            header.Add(_aiProviderFieldHeader);
 
             _balanceLabel = new Label(_balanceText);
             _balanceLabel.AddToClassList("balance");
@@ -258,11 +251,6 @@ namespace Tripo3D.Editor
             _warningLabel.AddToClassList("warning");
             generateBody.Add(_warningLabel);
 
-            _resultView = new Image();
-            _resultView.scaleMode = ScaleMode.ScaleToFit;
-            _resultView.AddToClassList("result-image");
-            generateBody.Add(_resultView);
-
             var actions = new VisualElement { style = { flexDirection = FlexDirection.Row } };
             var select = new Button(SelectLastAsset) { text = "Select Asset" };
             select.AddToClassList("secondary-btn");
@@ -275,9 +263,6 @@ namespace Tripo3D.Editor
             cancel.AddToClassList("secondary-btn");
             cancel.style.flexGrow = 1;
             cancel.style.marginLeft = 6;
-            _imageRigButton = new Button(RigLastGlb) { text = "Send to " + TripoSettings.AiProviderLabel + " (Blender rig)" };
-            _imageRigButton.AddToClassList("generate-btn");
-            generateBody.Add(_imageRigButton);
 
             actions.Add(select);
             actions.Add(place);
@@ -423,7 +408,7 @@ namespace Tripo3D.Editor
             {
                 var path = EditorUtility.OpenFilePanel("Select GLB to rig", Application.dataPath, "glb");
                 if (!string.IsNullOrEmpty(path))
-                    TripoJobRunner.RunBlenderRig(path);
+                    SendGlbToRig(path);
             }) { text = "Send selected GLB to " + TripoSettings.AiProviderLabel + "..." };
             pickGlb.AddToClassList("generate-btn");
             _pickGlbButton = pickGlb;
@@ -512,6 +497,11 @@ namespace Tripo3D.Editor
             page.Add(setupCard);
 
             var card = Card("Settings");
+
+            _outputField = new TextField("Output folder") { value = TripoSettings.OutputFolder };
+            _outputField.RegisterValueChangedCallback(evt => TripoSettings.OutputFolder = evt.newValue);
+            card.Add(_outputField);
+
             var hint = new Label("Tripo3D API key is stored in EditorPrefs and UserSettings/Tripo3D.settings.json (gitignored). It is never written into Assets.");
             hint.AddToClassList("hint");
             card.Add(hint);
@@ -572,10 +562,6 @@ namespace Tripo3D.Editor
             }) { text = "Save Tripo3D API Key" };
             save.AddToClassList("generate-btn");
             card.Add(save);
-
-            _outputField = new TextField("Output folder") { value = TripoSettings.OutputFolder };
-            _outputField.RegisterValueChangedCallback(evt => TripoSettings.OutputFolder = evt.newValue);
-            card.Add(_outputField);
 
             _blenderPathField = new TextField("Blender.exe") { value = string.IsNullOrEmpty(TripoSettings.BlenderPath) ? TripoBlenderRunner.FindBlender() : TripoSettings.BlenderPath };
             _blenderPathField.RegisterValueChangedCallback(evt => TripoSettings.BlenderPath = evt.newValue);
@@ -677,10 +663,6 @@ namespace Tripo3D.Editor
                 _aiProviderField.SetValueWithoutNotify(name);
             if (_aiProviderFieldSettings != null && _aiProviderFieldSettings.value != name)
                 _aiProviderFieldSettings.SetValueWithoutNotify(name);
-            if (_aiProviderFieldHeader != null && _aiProviderFieldHeader.value != name)
-                _aiProviderFieldHeader.SetValueWithoutNotify(name);
-            if (_imageRigButton != null)
-                _imageRigButton.text = "Send to " + name + " (Blender rig)";
             if (_pickGlbButton != null)
                 _pickGlbButton.text = "Send selected GLB to " + name + "...";
             if (_lastGlbButton != null)
@@ -1215,7 +1197,15 @@ namespace Tripo3D.Editor
                 return;
             }
 
-            TripoJobRunner.RunBlenderRig(TripoJobRunner.LastGlbPath);
+            SendGlbToRig(TripoJobRunner.LastGlbPath);
+        }
+
+        void SendGlbToRig(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return;
+            TripoJobRunner.RunBlenderRig(path);
+            ShowPage(Page.Jobs);
             RefreshJobUi();
         }
 
@@ -1263,8 +1253,6 @@ namespace Tripo3D.Editor
 
             if (_generateButton != null)
                 _generateButton.SetEnabled(!TripoJobRunner.IsBusy);
-            if (_resultView != null && TripoJobRunner.LastPreviewTexture != null)
-                _resultView.image = TripoJobRunner.LastPreviewTexture;
             if (_blenderStatus != null)
             {
                 _blenderStatus.text = "Last GLB: " + (string.IsNullOrEmpty(TripoJobRunner.LastGlbPath) ? "(none)" : TripoJobRunner.LastGlbPath)
