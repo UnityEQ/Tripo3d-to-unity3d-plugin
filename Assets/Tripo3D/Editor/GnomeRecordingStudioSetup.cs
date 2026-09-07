@@ -42,9 +42,11 @@ namespace Tripo3D.Editor
                 return;
             if (GameObject.Find(StudioName) != null)
             {
+                var gnome = FindGnome();
                 EnsureLookAt();
-                EnsureCharacterOnlyFill(FindGnome());
-                EnsureCinematic(FindGnome());
+                EnsureSet(gnome);
+                EnsureCharacterOnlyFill(gnome);
+                EnsureCinematic(gnome);
                 return;
             }
 
@@ -72,20 +74,7 @@ namespace Tripo3D.Editor
             if (studio == null)
                 studio = new GameObject(StudioName);
 
-            EnsureMaterial(FloorMat, new Color(0.16f, 0.14f, 0.12f), 0.08f, 0.38f);
-            EnsureMaterial(WallMat, new Color(0.78f, 0.74f, 0.68f), 0.02f, 0.22f);
-            var floorMat = AssetDatabase.LoadAssetAtPath<Material>(FloorMat);
-            var wallMat = AssetDatabase.LoadAssetAtPath<Material>(WallMat);
-
-            var floor = Primitive(studio.transform, "Floor", PrimitiveType.Plane, origin + new Vector3(0f, -0.01f, 0f), Vector3.zero, new Vector3(0.85f, 1f, 0.85f), floorMat);
-            floor.isStatic = true;
-
-            Primitive(studio.transform, "Wall Back", PrimitiveType.Cube,
-                origin + new Vector3(0f, 1.6f, 2.35f), Vector3.zero, new Vector3(8.5f, 3.3f, 0.12f), wallMat);
-            Primitive(studio.transform, "Wall Left", PrimitiveType.Cube,
-                origin + new Vector3(-2.45f, 1.6f, 0.15f), new Vector3(0f, 90f, 0f), new Vector3(4.6f, 3.3f, 0.12f), wallMat);
-            Primitive(studio.transform, "Wall Right", PrimitiveType.Cube,
-                origin + new Vector3(2.45f, 1.6f, 0.15f), new Vector3(0f, 90f, 0f), new Vector3(4.6f, 3.3f, 0.12f), wallMat);
+            EnsureSet(gnome);
 
             var key = GameObject.Find("Directional Light");
             if (key != null)
@@ -258,6 +247,28 @@ namespace Tripo3D.Editor
                 extra = light.gameObject.AddComponent<UniversalAdditionalLightData>();
             extra.renderingLayers = (RenderingLayerMask)mask;
             extra.customShadowLayers = false;
+        }
+
+        static void EnsureSet(GameObject gnome)
+        {
+            var studio = GameObject.Find(StudioName);
+            if (studio == null || gnome == null)
+                return;
+            var origin = gnome.transform.position;
+            EnsureMaterial(FloorMat, new Color(0.16f, 0.14f, 0.12f), 0.08f, 0.38f);
+            EnsureMaterial(WallMat, new Color(0.78f, 0.74f, 0.68f), 0.02f, 0.22f);
+            var floorMat = AssetDatabase.LoadAssetAtPath<Material>(FloorMat);
+            var wallMat = AssetDatabase.LoadAssetAtPath<Material>(WallMat);
+
+            var floor = Primitive(studio.transform, "Floor", PrimitiveType.Plane, origin + new Vector3(0f, -0.01f, 0f), Vector3.zero, new Vector3(1.5f, 1f, 1.5f), floorMat);
+            floor.isStatic = true;
+
+            Primitive(studio.transform, "Wall Back", PrimitiveType.Cube,
+                origin + new Vector3(0f, 2.1f, 5.6f), Vector3.zero, new Vector3(12.5f, 4.4f, 0.16f), wallMat);
+            Primitive(studio.transform, "Wall Left", PrimitiveType.Cube,
+                origin + new Vector3(-5.6f, 2.1f, 0.15f), new Vector3(0f, 90f, 0f), new Vector3(11.5f, 4.4f, 0.16f), wallMat);
+            Primitive(studio.transform, "Wall Right", PrimitiveType.Cube,
+                origin + new Vector3(5.6f, 2.1f, 0.15f), new Vector3(0f, 90f, 0f), new Vector3(11.5f, 4.4f, 0.16f), wallMat);
         }
 
         static void EnsureCinematic(GameObject gnome)
