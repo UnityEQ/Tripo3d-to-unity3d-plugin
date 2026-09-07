@@ -100,7 +100,7 @@ namespace Tripo3D.Editor
                 "7. Save `" + slug + "_rigged.blend`, `" + slug + "_rig_manifest.json`, `" + slug + "_rig_validation.json`.\n" +
                 "8. Import the FBX back into this Unity project and ping the asset. Humanoid avatar; Idle and Run loop, Jump and SwordSlash do not.\n\n" +
                 "## Job file (required)\n\n" +
-                "Update `Temp/tripo-ai-jobs/<id>.json` as you go: `status` `working`, `stage` (short), `updatedAt` (ISO time) so Unity does not time out. When Unity import and Humanoid checks succeed, set `status` to `done` and write an empty sibling `<id>.json.done`. On failure: `status` `failed` and `<id>.json.failed`. Do not leave the job on `working` after you are finished.\n\n";
+                "Update `Temp/tripo-ai-jobs/<id>.json` as you go: `status` `working`, `stage` (short), `updatedAt` (ISO time) so Unity does not time out. When Unity import and Humanoid checks succeed, set `status` to `done` and write an empty sibling `<id>.json.done`. On failure: `status` `failed` and `<id>.json.failed`. If `status` is `cancelled` or a sibling `<id>.json.cancelled` exists, **stop immediately** and do not write further Blender or Unity output. Do not leave the job on `working` after you are finished.\n\n";
         }
 
         static string Esc(string value)

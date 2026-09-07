@@ -466,6 +466,12 @@ namespace Tripo3D.Editor
                 RebuildJobs();
             }) { text = "Refresh job status" };
             refreshJobs.AddToClassList("secondary-btn");
+            var cancelJobs = new Button(() =>
+            {
+                TripoJobRunner.Cancel();
+                RebuildJobs();
+            }) { text = "Cancel running jobs" };
+            cancelJobs.AddToClassList("generate-btn");
             var clearJobs = new Button(() =>
             {
                 if (!EditorUtility.DisplayDialog("Clear jobs", "Remove all jobs from this list? Imported models stay in the project.", "Clear", "Cancel"))
@@ -475,6 +481,7 @@ namespace Tripo3D.Editor
             }) { text = "Clear jobs" };
             clearJobs.AddToClassList("secondary-btn");
             actions.Add(refreshJobs);
+            actions.Add(cancelJobs);
             actions.Add(clearJobs);
             card.Add(actions);
             _jobsList = new VisualElement();
@@ -1322,13 +1329,30 @@ namespace Tripo3D.Editor
                     row.Add(err);
                 }
 
+                var rowActions = new VisualElement();
+                rowActions.AddToClassList("btn-row");
                 if (!string.IsNullOrEmpty(path))
                 {
                     var selectPath = path;
                     var ping = new Button(() => PingJobAsset(selectPath)) { text = "Select" };
                     ping.AddToClassList("ghost-btn");
-                    row.Add(ping);
+                    rowActions.Add(ping);
                 }
+
+                if (job.status != "Success" && job.status != "Failed" && job.status != "Cancelled")
+                {
+                    var target = job;
+                    var cancel = new Button(() =>
+                    {
+                        TripoJobRunner.CancelJob(target);
+                        RebuildJobs();
+                    }) { text = "Cancel" };
+                    cancel.AddToClassList("secondary-btn");
+                    rowActions.Add(cancel);
+                }
+
+                if (rowActions.childCount > 0)
+                    row.Add(rowActions);
 
                 _jobsList.Add(row);
             }

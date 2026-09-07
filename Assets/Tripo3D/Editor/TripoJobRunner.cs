@@ -90,6 +90,57 @@ namespace Tripo3D.Editor
         {
             if (_cts != null)
                 _cts.Cancel();
+            CancelOpenJobs();
+        }
+
+        public static void CancelJob(TripoJobRecord job)
+        {
+            if (job == null || IsTerminal(job.status))
+                return;
+            if (string.Equals(job.kind, TripoJobKind.BlenderRig.ToString(), StringComparison.Ordinal))
+                WriteAiJobCancelled(ResolveAiJobFileId(job));
+            else if (_cts != null)
+                _cts.Cancel();
+            Set("Cancelled.", job.progress, TripoJobState.Cancelled, job);
+        }
+
+        static void CancelOpenJobs()
+        {
+            var jobs = TripoSession.instance.jobs;
+            if (jobs == null)
+                return;
+            for (var i = 0; i < jobs.Count; i++)
+            {
+                if (!IsTerminal(jobs[i].status))
+                    CancelJob(jobs[i]);
+            }
+        }
+
+        static void WriteAiJobCancelled(string jobFileId)
+        {
+            if (string.IsNullOrEmpty(jobFileId))
+                return;
+            var jsonPath = Path.Combine(TripoAiBridge.JobsDir, jobFileId + ".json");
+            try
+            {
+                if (File.Exists(jsonPath))
+                {
+                    var json = File.ReadAllText(jsonPath);
+                    json = System.Text.RegularExpressions.Regex.Replace(json, "\"status\"\\s*:\\s*\"[^\"]*\"", "\"status\": \"cancelled\"", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1));
+                    json = System.Text.RegularExpressions.Regex.Replace(json, "\"stage\"\\s*:\\s*\"[^\"]*\"", "\"stage\": \"cancelled_by_user\"", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1));
+                    json = System.Text.RegularExpressions.Regex.Replace(json, "\"updatedAt\"\\s*:\\s*\"[^\"]*\"", "\"updatedAt\": \"" + DateTime.Now.ToString("o") + "\"", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1));
+                    File.WriteAllText(jsonPath, json);
+                    var latest = Path.Combine(TripoAiBridge.JobsDir, "LATEST.json");
+                    if (File.Exists(latest))
+                        File.WriteAllText(latest, json);
+                }
+
+                File.WriteAllText(jsonPath + ".cancelled", "");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[Tripo3D] Could not write cancelled job file: " + ex.Message);
+            }
         }
 
         public static async void RunImageToModel(string imagePath, byte[] imageBytes, TripoGenerateOptions options)
@@ -1178,7 +1229,15 @@ namespace Tripo3D.Editor
                 return true;
             }
 
-            if (fileStatus == "failed" || fileStatus == "error" || fileStatus == "cancelled")
+            if (fileStatus == "cancelled")
+            {
+                if (job.status == TripoJobState.Cancelled.ToString())
+                    return false;
+                Set("Cancelled.", job.progress, TripoJobState.Cancelled, job);
+                return true;
+            }
+
+            if (fileStatus == "failed" || fileStatus == "error")
             {
                 if (alreadyFailed)
                     return false;
@@ -1399,6 +1458,8 @@ namespace Tripo3D.Editor
             var jsonPath = Path.Combine(TripoAiBridge.JobsDir, jobFileId + ".json");
             if (File.Exists(jsonPath + ".done"))
                 return "done";
+            if (File.Exists(jsonPath + ".cancelled"))
+                return "cancelled";
             if (File.Exists(jsonPath + ".failed") || File.Exists(jsonPath + ".error"))
                 return "failed";
             if (!File.Exists(jsonPath))
