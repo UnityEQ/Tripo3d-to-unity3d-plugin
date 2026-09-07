@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEditor;
@@ -146,9 +147,6 @@ namespace Tripo3D.Editor
         public static async void RunImageToModel(string imagePath, byte[] imageBytes, TripoGenerateOptions options)
         {
             options = options ?? new TripoGenerateOptions();
-            options.Model = TripoSettings.BestModel;
-            options.Pbr = false;
-            options.TextureQuality = "detailed";
             await Run(TripoJobKind.ImageToModel, DisplayName(imagePath, options), async (record, ct) =>
             {
                 Set("Uploading image...", 5f, TripoJobState.Uploading, record);
@@ -650,8 +648,11 @@ namespace Tripo3D.Editor
             var folder = TripoSettings.OutputFolder.TrimEnd('/') + "/" + stamp + "_" + slug;
             EnsureFolder(folder);
 
-            var glbPath = folder + "/" + slug + ".glb";
-            File.WriteAllBytes(ToDisk(glbPath), glb ?? Array.Empty<byte>());
+            var modelExt = DetectModelExtension(glb);
+            if (modelExt != ".glb" && modelExt != ".gltf" && modelExt != ".fbx")
+                modelExt = ".glb";
+            var modelPath = folder + "/" + slug + modelExt;
+            File.WriteAllBytes(ToDisk(modelPath), glb ?? Array.Empty<byte>());
 
             string previewPath = null;
             Texture2D previewTexture = null;
@@ -663,7 +664,11 @@ namespace Tripo3D.Editor
             }
 
             string fbxPath = null;
-            if (fbx != null && fbx.Length > 0)
+            if (modelExt == ".fbx")
+            {
+                fbxPath = modelPath;
+            }
+            else if (fbx != null && fbx.Length > 0)
             {
                 fbxPath = folder + "/" + slug + ".fbx";
                 File.WriteAllBytes(ToDisk(fbxPath), fbx);
@@ -671,7 +676,8 @@ namespace Tripo3D.Editor
 
             AssetDatabase.Refresh();
 
-            var assetPath = !string.IsNullOrEmpty(fbxPath) ? fbxPath : glbPath;
+            var assetPath = !string.IsNullOrEmpty(fbxPath) ? fbxPath : modelPath;
+            var glbPath = modelExt == ".fbx" ? assetPath : modelPath;
             return (assetPath, previewPath, previewTexture, glbPath);
         }
 
@@ -699,6 +705,25 @@ namespace Tripo3D.Editor
 
             Debug.LogWarning("[Tripo3D] Preview is " + ext.Trim('.') + ", not PNG/JPEG. Skipping Project import (Tripo often returns WebP).");
             return (null, null);
+        }
+
+        static string DetectModelExtension(byte[] bytes)
+        {
+            if (bytes == null || bytes.Length < 8)
+                return ".bin";
+            if (bytes[0] == (byte)'g' && bytes[1] == (byte)'l' && bytes[2] == (byte)'T' && bytes[3] == (byte)'F')
+                return ".glb";
+            if (bytes[0] == (byte)'{')
+                return ".gltf";
+            if (bytes.Length >= 20)
+            {
+                var head = Encoding.ASCII.GetString(bytes, 0, 20);
+                if (head.StartsWith("Kaydara FBX Binary", StringComparison.Ordinal))
+                    return ".fbx";
+            }
+            if (bytes[0] == (byte)';')
+                return ".fbx";
+            return ".glb";
         }
 
         static string DetectImageExtension(byte[] bytes)

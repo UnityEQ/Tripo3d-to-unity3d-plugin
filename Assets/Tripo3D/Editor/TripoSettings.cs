@@ -48,7 +48,8 @@ namespace Tripo3D.Editor
         static TripoSettings()
         {
             LoadApiKeyFromDiskIfEmpty();
-            ApplyImageTo3dDefaults();
+            if (EditorPrefs.GetInt(PrefsGenDefaults, 0) < 2)
+                ApplyImageTo3dDefaults();
         }
 
         public static void ApplyImageTo3dDefaults()

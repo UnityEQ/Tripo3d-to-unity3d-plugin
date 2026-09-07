@@ -780,17 +780,7 @@ namespace Tripo3D.Editor
             }
 
             var options = ReadOptions();
-            options.Model = TripoSettings.BestModel;
-            options.Pbr = false;
-            options.TextureQuality = "detailed";
             options.OutputName = Path.GetFileNameWithoutExtension(_imagePath);
-            if (_modelField != null)
-                _modelField.SetValueWithoutNotify(TripoSettings.BestModel);
-            if (_pbrToggle != null)
-                _pbrToggle.SetValueWithoutNotify(false);
-            if (_qualityField != null)
-                _qualityField.SetValueWithoutNotify("detailed");
-            TripoSettings.ApplyImageTo3dDefaults();
             TripoJobRunner.RunImageToModel(_imagePath, _imageBytes, options);
             RefreshJobUi();
         }
@@ -1195,6 +1185,7 @@ namespace Tripo3D.Editor
             if (_placeToggle != null) options.PlaceInScene = _placeToggle.value;
             if (_fbxToggle != null) options.ConvertToFbx = _fbxToggle.value;
             if (_autoRigToggle != null) options.RigInBlender = _autoRigToggle.value;
+            // P2 quad output is FBX (glTF has no quads). Import writes .fbx from the file magic.
             options.Quad = options.Model == "P2-20260801";
             return options;
         }
