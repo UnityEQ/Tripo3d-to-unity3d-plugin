@@ -105,6 +105,38 @@ namespace Tripo3D.Editor
             return parsed;
         }
 
+        public static void ConvertFbxToGlb(string fbxDiskPath, string glbDiskPath, CancellationToken ct)
+        {
+            ConvertFbxToGlb(fbxDiskPath, glbDiskPath, FindBlender(), ct);
+        }
+
+        public static void ConvertFbxToGlb(string fbxDiskPath, string glbDiskPath, string blender, CancellationToken ct)
+        {
+            if (string.IsNullOrEmpty(fbxDiskPath) || !File.Exists(fbxDiskPath))
+                throw new TripoException("FBX not found for GLB convert: " + fbxDiskPath);
+            var script = Path.Combine(ProjectRoot, "Tools", "Blender", "fbx_to_glb.py");
+            if (!File.Exists(script))
+                throw new TripoException("Missing FBX to GLB script: " + script);
+
+            var destDir = Path.GetDirectoryName(glbDiskPath);
+            if (!string.IsNullOrEmpty(destDir))
+                Directory.CreateDirectory(destDir);
+            if (File.Exists(glbDiskPath))
+                File.Delete(glbDiskPath);
+
+            if (string.IsNullOrEmpty(blender) || (blender != "blender" && !File.Exists(blender)))
+                throw new TripoException("Set Blender.exe in Settings so P2 FBX can be written as a GLB for Grok.");
+
+            var args = new StringBuilder();
+            args.Append("--background");
+            args.Append(" --python ").Append(Quote(script));
+            args.Append(" -- --fbx ").Append(Quote(fbxDiskPath));
+            args.Append(" --glb ").Append(Quote(glbDiskPath));
+            RunProcess(blender, args.ToString(), ct, 5 * 60 * 1000);
+            if (!File.Exists(glbDiskPath) || new FileInfo(glbDiskPath).Length < 64)
+                throw new TripoException("Blender did not write a GLB from the P2 FBX.");
+        }
+
         public static string RunAgent(string blendDiskPath, string op, string extraFile, CancellationToken ct)
         {
             var blender = FindBlender();

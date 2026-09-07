@@ -516,19 +516,46 @@ namespace Tripo3D.Editor
         {
             options = options ?? new TripoGenerateOptions();
             var output = task.output ?? new TripoOutput();
-            var modelUrl = output.BestModelUrl;
-            if (string.IsNullOrEmpty(modelUrl))
+            TripoJson.MergeOutputUrls(output, TripoApiClient.LastRawJson);
+            var urls = output.AllModelUrls();
+            if (urls.Length == 0)
                 throw new TripoException("Task succeeded but no model URL was returned. Download immediately — URLs expire after 5 minutes.");
 
-            Set("Downloading GLB...", 88f, TripoJobState.Downloading, record);
-            var glb = await TripoApiClient.DownloadAsync(modelUrl, ct);
+            byte[] glb = null;
+            byte[] fbx = null;
+            for (var i = 0; i < urls.Length; i++)
+            {
+                Set(i == 0 ? "Downloading model..." : "Downloading extra model...", 88f + i, TripoJobState.Downloading, record);
+                byte[] bytes;
+                try
+                {
+                    bytes = await TripoApiClient.DownloadAsync(urls[i], ct);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning("[Tripo3D] Model download failed (" + urls[i] + "): " + ex.Message);
+                    continue;
+                }
+
+                var ext = DetectModelExtension(bytes);
+                if (ext == ".fbx" && fbx == null)
+                    fbx = bytes;
+                else if ((ext == ".glb" || ext == ".gltf") && glb == null)
+                    glb = bytes;
+                else if (glb == null && fbx == null)
+                    glb = bytes;
+            }
+
+            if (glb == null && fbx == null)
+                throw new TripoException("Downloaded model files were empty.");
 
             byte[] preview = null;
-            if (!string.IsNullOrEmpty(output.rendered_image_url))
+            var previewUrl = output.PreviewUrl;
+            if (!string.IsNullOrEmpty(previewUrl))
             {
                 try
                 {
-                    preview = await TripoApiClient.DownloadAsync(output.rendered_image_url, ct);
+                    preview = await TripoApiClient.DownloadAsync(previewUrl, ct);
                 }
                 catch (Exception ex)
                 {
@@ -536,14 +563,14 @@ namespace Tripo3D.Editor
                 }
             }
 
-            byte[] fbx = null;
-            if (options.ConvertToFbx && !string.IsNullOrEmpty(task.task_id))
+            if (options.ConvertToFbx && fbx == null && !string.IsNullOrEmpty(task.task_id))
             {
                 try
                 {
                     Set("Converting to FBX...", 92f, TripoJobState.Downloading, record);
                     var convertId = await TripoApiClient.ConvertAsync(task.task_id, "FBX", ct);
                     var converted = await PollAsync(convertId, record, ct);
+                    TripoJson.MergeOutputUrls(converted.output, TripoApiClient.LastRawJson);
                     var fbxUrl = converted.output != null ? converted.output.BestModelUrl : null;
                     if (!string.IsNullOrEmpty(fbxUrl))
                         fbx = await TripoApiClient.DownloadAsync(fbxUrl, ct);
@@ -554,10 +581,11 @@ namespace Tripo3D.Editor
                 }
             }
 
+            var imported = default((string assetPath, string previewPath, Texture2D previewTexture, string glbPath));
             await OnMain(() =>
             {
                 Set("Importing into project...", 96f, TripoJobState.Importing, record);
-                var imported = WriteAssets(record.name, glb, preview, fbx);
+                imported = WriteAssets(record.name, glb, preview, fbx);
                 record.assetPath = imported.assetPath;
                 record.previewPath = imported.previewPath;
                 if (options != null && !string.IsNullOrEmpty(options.Model))
@@ -568,13 +596,81 @@ namespace Tripo3D.Editor
                 LastGlbPath = imported.glbPath;
                 if (!string.IsNullOrEmpty(task.task_id))
                     LastModelTaskId = task.task_id;
-                if (options.PlaceInScene)
-                    PlaceInScene(imported.assetPath);
-                Set("Imported " + imported.assetPath, 100f, TripoJobState.Success, record);
-                EditorGUIUtility.PingObject(AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(imported.assetPath));
             });
 
-            if (options.RigInBlender && !string.IsNullOrEmpty(LastGlbPath))
+            var hasGlb = !string.IsNullOrEmpty(imported.glbPath)
+                         && imported.glbPath.EndsWith(".glb", StringComparison.OrdinalIgnoreCase)
+                         && File.Exists(ToDisk(imported.glbPath));
+            var fbxAsset = !string.IsNullOrEmpty(imported.assetPath)
+                           && imported.assetPath.EndsWith(".fbx", StringComparison.OrdinalIgnoreCase)
+                ? imported.assetPath
+                : null;
+            if (!hasGlb && !string.IsNullOrEmpty(fbxAsset))
+            {
+                var fbxDisk = ToDisk(fbxAsset);
+                var glbDisk = Path.ChangeExtension(fbxDisk, ".glb");
+                string blender = null;
+                await OnMain(() => blender = TripoBlenderRunner.FindBlender());
+                try
+                {
+                    await OnMain(() => Set("Converting FBX to GLB for Grok...", 97f, TripoJobState.Importing, record));
+                    await Task.Run(() => TripoBlenderRunner.ConvertFbxToGlb(fbxDisk, glbDisk, blender, ct), ct);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning("[Tripo3D] Local FBX to GLB failed: " + ex.Message);
+                    if (!string.IsNullOrEmpty(task.task_id))
+                    {
+                        try
+                        {
+                            await OnMain(() => Set("Requesting GLB convert from Tripo...", 97f, TripoJobState.Downloading, record));
+                            var convertId = await TripoApiClient.ConvertAsync(task.task_id, "GLB", ct);
+                            var converted = await PollAsync(convertId, record, ct);
+                            TripoJson.MergeOutputUrls(converted.output, TripoApiClient.LastRawJson);
+                            var glbUrl = converted.output != null ? converted.output.BestModelUrl : null;
+                            if (!string.IsNullOrEmpty(glbUrl))
+                            {
+                                var glbBytes = await TripoApiClient.DownloadAsync(glbUrl, ct);
+                                if (glbBytes != null && glbBytes.Length > 64)
+                                    File.WriteAllBytes(glbDisk, glbBytes);
+                            }
+                        }
+                        catch (Exception apiEx)
+                        {
+                            Debug.LogWarning("[Tripo3D] Tripo GLB convert failed: " + apiEx.Message);
+                        }
+                    }
+                }
+
+                await OnMain(() =>
+                {
+                    if (File.Exists(glbDisk))
+                    {
+                        AssetDatabase.Refresh();
+                        var glbAsset = ToAssetPath(glbDisk);
+                        imported.glbPath = glbAsset;
+                        LastGlbPath = glbAsset;
+                    }
+                });
+            }
+
+            await OnMain(() =>
+            {
+                if (options.PlaceInScene)
+                    PlaceInScene(imported.assetPath);
+                var msg = "Imported " + imported.assetPath;
+                if (!string.IsNullOrEmpty(LastGlbPath) && LastGlbPath.EndsWith(".glb", StringComparison.OrdinalIgnoreCase))
+                    msg += " + GLB";
+                else if (!string.IsNullOrEmpty(fbxAsset))
+                    msg += " (no GLB — set Blender.exe in Settings)";
+                Set(msg, 100f, TripoJobState.Success, record);
+                EditorGUIUtility.PingObject(AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(
+                    !string.IsNullOrEmpty(LastGlbPath) ? LastGlbPath : imported.assetPath));
+            });
+
+            if (options.RigInBlender
+                && !string.IsNullOrEmpty(LastGlbPath)
+                && LastGlbPath.EndsWith(".glb", StringComparison.OrdinalIgnoreCase))
             {
                 await OnMain(() =>
                 {
@@ -648,11 +744,32 @@ namespace Tripo3D.Editor
             var folder = TripoSettings.OutputFolder.TrimEnd('/') + "/" + stamp + "_" + slug;
             EnsureFolder(folder);
 
-            var modelExt = DetectModelExtension(glb);
-            if (modelExt != ".glb" && modelExt != ".gltf" && modelExt != ".fbx")
-                modelExt = ".glb";
-            var modelPath = folder + "/" + slug + modelExt;
-            File.WriteAllBytes(ToDisk(modelPath), glb ?? Array.Empty<byte>());
+            string glbPath = null;
+            string fbxPath = null;
+            if (glb != null && glb.Length > 0)
+            {
+                var ext = DetectModelExtension(glb);
+                if (ext == ".fbx")
+                {
+                    fbxPath = folder + "/" + slug + ".fbx";
+                    File.WriteAllBytes(ToDisk(fbxPath), glb);
+                    ExtractFbxSidecarTextures(glb, fbxPath);
+                }
+                else
+                {
+                    if (ext != ".glb" && ext != ".gltf")
+                        ext = ".glb";
+                    glbPath = folder + "/" + slug + ext;
+                    File.WriteAllBytes(ToDisk(glbPath), glb);
+                }
+            }
+
+            if (fbx != null && fbx.Length > 0 && string.IsNullOrEmpty(fbxPath))
+            {
+                fbxPath = folder + "/" + slug + ".fbx";
+                File.WriteAllBytes(ToDisk(fbxPath), fbx);
+                ExtractFbxSidecarTextures(fbx, fbxPath);
+            }
 
             string previewPath = null;
             Texture2D previewTexture = null;
@@ -663,22 +780,240 @@ namespace Tripo3D.Editor
                 previewTexture = written.texture;
             }
 
-            string fbxPath = null;
-            if (modelExt == ".fbx")
-            {
-                fbxPath = modelPath;
-            }
-            else if (fbx != null && fbx.Length > 0)
-            {
-                fbxPath = folder + "/" + slug + ".fbx";
-                File.WriteAllBytes(ToDisk(fbxPath), fbx);
-            }
-
             AssetDatabase.Refresh();
 
-            var assetPath = !string.IsNullOrEmpty(fbxPath) ? fbxPath : modelPath;
-            var glbPath = modelExt == ".fbx" ? assetPath : modelPath;
-            return (assetPath, previewPath, previewTexture, glbPath);
+            var assetPath = !string.IsNullOrEmpty(fbxPath) ? fbxPath : glbPath;
+            if (!string.IsNullOrEmpty(fbxPath))
+            {
+                ConfigureImportedFbx(fbxPath);
+                AssignImportedAlbedo(fbxPath, folder);
+            }
+            return (assetPath, previewPath, previewTexture, glbPath ?? fbxPath);
+        }
+
+        static void ExtractFbxSidecarTextures(byte[] data, string modelAssetPath)
+        {
+            if (data == null || data.Length < 32 || string.IsNullOrEmpty(modelAssetPath))
+                return;
+            var rels = FindFbxMediaPaths(data);
+            var blobs = ExtractImageBlobs(data);
+            if (blobs.Count == 0)
+                return;
+
+            var diskDir = Path.GetDirectoryName(ToDisk(modelAssetPath));
+            if (string.IsNullOrEmpty(diskDir))
+                return;
+
+            if (rels.Count == 0)
+                rels.Add("Textures/Color.jpg");
+
+            for (var i = 0; i < rels.Count; i++)
+            {
+                var blob = blobs[Math.Min(i, blobs.Count - 1)];
+                var dest = Path.Combine(diskDir, rels[i].Replace('/', Path.DirectorySeparatorChar));
+                var destDir = Path.GetDirectoryName(dest);
+                if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+                    Directory.CreateDirectory(destDir);
+                File.WriteAllBytes(dest, blob);
+            }
+
+            var textures = Path.Combine(diskDir, "Textures");
+            if (!Directory.Exists(textures))
+                Directory.CreateDirectory(textures);
+            var ext = blobs[0].Length >= 8 && blobs[0][0] == 0x89 ? ".png" : ".jpg";
+            var slug = Path.GetFileNameWithoutExtension(modelAssetPath);
+            File.WriteAllBytes(Path.Combine(textures, "Color" + ext), blobs[0]);
+            File.WriteAllBytes(Path.Combine(diskDir, slug + "_texture" + ext), blobs[0]);
+            File.WriteAllBytes(Path.Combine(textures, slug + "_texture" + ext), blobs[0]);
+        }
+
+        static List<string> FindFbxMediaPaths(byte[] data)
+        {
+            var paths = new List<string>();
+            var ascii = Encoding.ASCII.GetString(data);
+            var idx = 0;
+            while (idx < ascii.Length)
+            {
+                var at = ascii.IndexOf(".fbm/", idx, StringComparison.OrdinalIgnoreCase);
+                if (at < 0)
+                    at = ascii.IndexOf(".fbm\\", idx, StringComparison.OrdinalIgnoreCase);
+                if (at < 0)
+                    break;
+                var start = at;
+                while (start > 0 && IsFbxPathChar(ascii[start - 1]))
+                    start--;
+                var end = at + 5;
+                while (end < ascii.Length && IsFbxPathChar(ascii[end]))
+                    end++;
+                var token = ascii.Substring(start, end - start).Replace('\\', '/');
+                var fbmAt = token.LastIndexOf(".fbm/", StringComparison.OrdinalIgnoreCase);
+                if (fbmAt >= 0)
+                {
+                    var slash = token.LastIndexOf('/', fbmAt);
+                    token = slash >= 0 ? token.Substring(slash + 1) : token;
+                }
+                if (token.IndexOf(".fbm/", StringComparison.OrdinalIgnoreCase) >= 0 && !paths.Contains(token))
+                    paths.Add(token);
+                idx = end;
+            }
+            return paths;
+        }
+
+        static bool IsFbxPathChar(char c)
+        {
+            return c == '/' || c == '\\' || c == '.' || c == '_' || c == '-'
+                   || (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+        }
+
+        static List<byte[]> ExtractImageBlobs(byte[] data)
+        {
+            var list = new List<byte[]>();
+            for (var i = 0; i + 8 < data.Length;)
+            {
+                if (data[i] == 0xFF && data[i + 1] == 0xD8 && data[i + 2] == 0xFF)
+                {
+                    var end = -1;
+                    for (var j = i + 3; j + 1 < data.Length; j++)
+                    {
+                        if (data[j] == 0xFF && data[j + 1] == 0xD9)
+                        {
+                            end = j + 2;
+                            break;
+                        }
+                    }
+                    if (end > i && end - i > 8192)
+                    {
+                        var blob = new byte[end - i];
+                        Buffer.BlockCopy(data, i, blob, 0, blob.Length);
+                        list.Add(blob);
+                        i = end;
+                        continue;
+                    }
+                }
+
+                if (data[i] == 0x89 && data[i + 1] == 0x50 && data[i + 2] == 0x4E && data[i + 3] == 0x47)
+                {
+                    var j = i + 8;
+                    var ok = false;
+                    while (j + 12 <= data.Length)
+                    {
+                        var len = (data[j] << 24) | (data[j + 1] << 16) | (data[j + 2] << 8) | data[j + 3];
+                        if (len < 0 || j + 12 + len > data.Length)
+                            break;
+                        var t0 = data[j + 4];
+                        var t1 = data[j + 5];
+                        var t2 = data[j + 6];
+                        var t3 = data[j + 7];
+                        j = j + 12 + len;
+                        if (t0 == (byte)'I' && t1 == (byte)'E' && t2 == (byte)'N' && t3 == (byte)'D')
+                        {
+                            ok = true;
+                            break;
+                        }
+                    }
+                    if (ok && j - i > 1024)
+                    {
+                        var blob = new byte[j - i];
+                        Buffer.BlockCopy(data, i, blob, 0, blob.Length);
+                        list.Add(blob);
+                        i = j;
+                        continue;
+                    }
+                }
+
+                i++;
+            }
+            return list;
+        }
+
+        static void ConfigureImportedFbx(string assetPath)
+        {
+            var importer = AssetImporter.GetAtPath(assetPath) as ModelImporter;
+            if (importer == null)
+                return;
+            importer.materialImportMode = ModelImporterMaterialImportMode.ImportViaMaterialDescription;
+            importer.materialLocation = ModelImporterMaterialLocation.External;
+            importer.materialSearch = ModelImporterMaterialSearch.Local;
+            importer.keepQuads = true;
+            importer.importNormals = ModelImporterNormals.Import;
+            importer.importTangents = ModelImporterTangents.Import;
+            importer.SaveAndReimport();
+        }
+
+        static void AssignImportedAlbedo(string modelPath, string folder)
+        {
+            var tex = FindImportedAlbedo(folder);
+            if (tex == null)
+                return;
+            var shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null)
+                shader = Shader.Find("Standard");
+            if (shader == null)
+                return;
+
+            var matPath = folder.TrimEnd('/') + "/Character.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+            if (mat == null)
+            {
+                mat = new Material(shader);
+                AssetDatabase.CreateAsset(mat, matPath);
+            }
+            mat.shader = shader;
+            if (mat.HasProperty("_BaseMap"))
+                mat.SetTexture("_BaseMap", tex);
+            if (mat.HasProperty("_MainTex"))
+                mat.SetTexture("_MainTex", tex);
+            if (mat.HasProperty("_BaseColor"))
+                mat.SetColor("_BaseColor", Color.white);
+            if (mat.HasProperty("_Color"))
+                mat.SetColor("_Color", Color.white);
+            EditorUtility.SetDirty(mat);
+
+            var importer = AssetImporter.GetAtPath(modelPath) as ModelImporter;
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(modelPath);
+            if (importer == null || model == null)
+                return;
+            var seen = new HashSet<string>();
+            var renderers = model.GetComponentsInChildren<Renderer>(true);
+            for (var i = 0; i < renderers.Length; i++)
+            {
+                var shared = renderers[i].sharedMaterials;
+                if (shared == null)
+                    continue;
+                for (var m = 0; m < shared.Length; m++)
+                {
+                    if (shared[m] == null || seen.Contains(shared[m].name))
+                        continue;
+                    seen.Add(shared[m].name);
+                    importer.AddRemap(new AssetImporter.SourceAssetIdentifier(typeof(Material), shared[m].name), mat);
+                }
+            }
+            importer.SaveAndReimport();
+        }
+
+        static Texture2D FindImportedAlbedo(string folder)
+        {
+            var root = folder.TrimEnd('/').Replace('\\', '/');
+            string[] names =
+            {
+                "Color.jpg", "Color.png",
+                "Textures/Color.jpg", "Textures/Color.png"
+            };
+            for (var i = 0; i < names.Length; i++)
+            {
+                var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(root + "/" + names[i]);
+                if (tex != null)
+                    return tex;
+            }
+            var guids = AssetDatabase.FindAssets("t:Texture2D", new[] { root });
+            for (var i = 0; i < guids.Length; i++)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guids[i]);
+                var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+                if (tex != null)
+                    return tex;
+            }
+            return null;
         }
 
         static (string path, Texture2D texture) WritePreview(string folder, string slug, byte[] bytes)
@@ -696,15 +1031,11 @@ namespace Tripo3D.Editor
 
             UnityEngine.Object.DestroyImmediate(tex);
             var ext = DetectImageExtension(bytes);
-            if (ext == ".png" || ext == ".jpg")
-            {
-                var path = folder + "/" + slug + "_preview" + ext;
-                File.WriteAllBytes(ToDisk(path), bytes);
-                return (path, null);
-            }
-
-            Debug.LogWarning("[Tripo3D] Preview is " + ext.Trim('.') + ", not PNG/JPEG. Skipping Project import (Tripo often returns WebP).");
-            return (null, null);
+            var fallbackPath = folder + "/" + slug + "_preview" + (ext == ".bin" ? ".webp" : ext);
+            File.WriteAllBytes(ToDisk(fallbackPath), bytes);
+            if (ext != ".png" && ext != ".jpg" && ext != ".webp")
+                Debug.LogWarning("[Tripo3D] Preview saved as " + Path.GetFileName(fallbackPath) + ".");
+            return (fallbackPath, null);
         }
 
         static string DetectModelExtension(byte[] bytes)

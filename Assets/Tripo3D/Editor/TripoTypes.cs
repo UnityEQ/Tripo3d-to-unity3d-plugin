@@ -36,7 +36,12 @@ namespace Tripo3D.Editor
     {
         public string model_url;
         public string pbr_model_url;
+        public string base_model_url;
+        public string model;
+        public string pbr_model;
+        public string base_model;
         public string rendered_image_url;
+        public string rendered_image;
         public string front_view_url;
         public string left_view_url;
         public string back_view_url;
@@ -48,8 +53,50 @@ namespace Tripo3D.Editor
             {
                 if (!string.IsNullOrEmpty(model_url))
                     return model_url;
-                return pbr_model_url;
+                if (!string.IsNullOrEmpty(model))
+                    return model;
+                if (!string.IsNullOrEmpty(pbr_model_url))
+                    return pbr_model_url;
+                if (!string.IsNullOrEmpty(pbr_model))
+                    return pbr_model;
+                if (!string.IsNullOrEmpty(base_model_url))
+                    return base_model_url;
+                return base_model;
             }
+        }
+
+        public string PreviewUrl
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(rendered_image_url))
+                    return rendered_image_url;
+                return rendered_image;
+            }
+        }
+
+        public string[] AllModelUrls()
+        {
+            var list = new System.Collections.Generic.List<string>();
+            AddUrl(list, model_url);
+            AddUrl(list, model);
+            AddUrl(list, pbr_model_url);
+            AddUrl(list, pbr_model);
+            AddUrl(list, base_model_url);
+            AddUrl(list, base_model);
+            return list.ToArray();
+        }
+
+        static void AddUrl(System.Collections.Generic.List<string> list, string url)
+        {
+            if (string.IsNullOrEmpty(url))
+                return;
+            for (var i = 0; i < list.Count; i++)
+            {
+                if (string.Equals(list[i], url, StringComparison.Ordinal))
+                    return;
+            }
+            list.Add(url);
         }
     }
 

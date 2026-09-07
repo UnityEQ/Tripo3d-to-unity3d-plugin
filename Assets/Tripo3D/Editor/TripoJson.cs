@@ -116,6 +116,51 @@ namespace Tripo3D.Editor
             }
         }
 
+        public static string ExtractString(string json, string field)
+        {
+            if (string.IsNullOrEmpty(json) || string.IsNullOrEmpty(field))
+                return null;
+            var token = "\"" + field + "\"";
+            var index = json.IndexOf(token, StringComparison.OrdinalIgnoreCase);
+            if (index < 0)
+                return null;
+            var colon = json.IndexOf(':', index + token.Length);
+            if (colon < 0)
+                return null;
+            var q1 = json.IndexOf('"', colon + 1);
+            if (q1 < 0)
+                return null;
+            var q2 = q1 + 1;
+            while (q2 < json.Length)
+            {
+                if (json[q2] == '"' && json[q2 - 1] != '\\')
+                    break;
+                q2++;
+            }
+            if (q2 >= json.Length)
+                return null;
+            return json.Substring(q1 + 1, q2 - q1 - 1);
+        }
+
+        public static void MergeOutputUrls(TripoOutput output, string json)
+        {
+            if (output == null || string.IsNullOrEmpty(json))
+                return;
+            if (string.IsNullOrEmpty(output.model_url))
+                output.model_url = First(ExtractString(json, "model_url"), ExtractString(json, "model"));
+            if (string.IsNullOrEmpty(output.pbr_model_url))
+                output.pbr_model_url = First(ExtractString(json, "pbr_model_url"), ExtractString(json, "pbr_model"));
+            if (string.IsNullOrEmpty(output.base_model_url))
+                output.base_model_url = First(ExtractString(json, "base_model_url"), ExtractString(json, "base_model"));
+            if (string.IsNullOrEmpty(output.rendered_image_url))
+                output.rendered_image_url = First(ExtractString(json, "rendered_image_url"), ExtractString(json, "rendered_image"));
+        }
+
+        static string First(string a, string b)
+        {
+            return !string.IsNullOrEmpty(a) ? a : b;
+        }
+
         public static string[] ExtractPartNames(string json)
         {
             var names = new System.Collections.Generic.List<string>();
