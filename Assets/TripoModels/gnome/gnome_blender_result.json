@@ -1,0 +1,19 @@
+{
+  "ok": false,
+  "fbx": "C:\\Tripo-plugin\\Assets\\TripoModels\\20260906_170418_gnome\\gnome.fbx",
+  "blend": "C:\\Tripo-plugin\\Assets\\TripoModels\\20260906_170418_gnome\\gnome_rigged.blend",
+  "manifest": "C:\\Tripo-plugin\\Assets\\TripoModels\\20260906_170418_gnome\\gnome_rig_manifest.json",
+  "validation": "C:\\Tripo-plugin\\Assets\\TripoModels\\20260906_170418_gnome\\gnome_rig_validation.json",
+  "textures": [
+    "C:\\Tripo-plugin\\Assets\\TripoModels\\20260906_170418_gnome\\gnome_texture.png"
+  ],
+  "errors": [
+    "Rest/leak/torso-intersection check failed"
+  ],
+  "warnings": [
+    "Proximity weights used after bone-heat failed on this mesh.",
+    "Low-poly digit/boot topology folds some same-limb triangles on Run/Jump; limb-through-torso is the gate.",
+    "Maximum edge stretch metrics are diagnostics, not a zero-distortion guarantee."
+  ],
+  "schema": "biped_humanoid_v1"
+}

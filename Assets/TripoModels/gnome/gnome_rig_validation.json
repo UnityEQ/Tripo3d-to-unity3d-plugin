@@ -1,0 +1,484 @@
+{
+  "ok": true,
+  "errors": [],
+  "warnings": [
+    "Proximity weights used after bone-heat failed on this mesh.",
+    "Low-poly digit/boot topology folds some same-limb triangles on Run/Jump; limb-through-torso is the gate.",
+    "Idle Clavicle.R/Chest pairs are adjacent shoulder-cap contact, not a limb through the torso.",
+    "SwordSlash remaining limit: Middle3.R/Index3.R fingertip graze vs Chest on the cut; visual slash plane is in front of the sternum (side still).",
+    "Maximum edge stretch metrics are diagnostics, not a zero-distortion guarantee."
+  ],
+  "bones": [
+    {
+      "name": "Root",
+      "parent": null,
+      "length": 0.05000000176951286
+    },
+    {
+      "name": "Hips",
+      "parent": "Root",
+      "length": 0.06527633413523184
+    },
+    {
+      "name": "Spine",
+      "parent": "Hips",
+      "length": 0.07595392265028629
+    },
+    {
+      "name": "Chest",
+      "parent": "Spine",
+      "length": 0.14035667602448273
+    },
+    {
+      "name": "Neck",
+      "parent": "Chest",
+      "length": 0.17001177878222967
+    },
+    {
+      "name": "Head",
+      "parent": "Neck",
+      "length": 0.17018814563860232
+    },
+    {
+      "name": "Clavicle.L",
+      "parent": "Chest",
+      "length": 0.10187737148488839
+    },
+    {
+      "name": "UpperArm.L",
+      "parent": "Clavicle.L",
+      "length": 0.18999475089199608
+    },
+    {
+      "name": "Forearm.L",
+      "parent": "UpperArm.L",
+      "length": 0.11538631423703807
+    },
+    {
+      "name": "Hand.L",
+      "parent": "Forearm.L",
+      "length": 0.03021589267893972
+    },
+    {
+      "name": "Thumb1.L",
+      "parent": "Hand.L",
+      "length": 0.012220931781348462
+    },
+    {
+      "name": "Thumb2.L",
+      "parent": "Thumb1.L",
+      "length": 0.010165180293386165
+    },
+    {
+      "name": "Thumb3.L",
+      "parent": "Thumb2.L",
+      "length": 0.007413737411534778
+    },
+    {
+      "name": "Index1.L",
+      "parent": "Hand.L",
+      "length": 0.013625822255603227
+    },
+    {
+      "name": "Index2.L",
+      "parent": "Index1.L",
+      "length": 0.014459048404501247
+    },
+    {
+      "name": "Index3.L",
+      "parent": "Index2.L",
+      "length": 0.015028995519205538
+    },
+    {
+      "name": "Middle1.L",
+      "parent": "Hand.L",
+      "length": 0.017216361266614275
+    },
+    {
+      "name": "Middle2.L",
+      "parent": "Middle1.L",
+      "length": 0.01460694507096454
+    },
+    {
+      "name": "Middle3.L",
+      "parent": "Middle2.L",
+      "length": 0.010908012170459143
+    },
+    {
+      "name": "Ring1.L",
+      "parent": "Hand.L",
+      "length": 0.01340109598297043
+    },
+    {
+      "name": "Ring2.L",
+      "parent": "Ring1.L",
+      "length": 0.014429528188207403
+    },
+    {
+      "name": "Ring3.L",
+      "parent": "Ring2.L",
+      "length": 0.009587615322577129
+    },
+    {
+      "name": "Little1.L",
+      "parent": "Hand.L",
+      "length": 0.011552022547274863
+    },
+    {
+      "name": "Little2.L",
+      "parent": "Little1.L",
+      "length": 0.01593224278361684
+    },
+    {
+      "name": "Little3.L",
+      "parent": "Little2.L",
+      "length": 0.009021176133242336
+    },
+    {
+      "name": "Clavicle.R",
+      "parent": "Chest",
+      "length": 0.10187737148488839
+    },
+    {
+      "name": "UpperArm.R",
+      "parent": "Clavicle.R",
+      "length": 0.18999475089199608
+    },
+    {
+      "name": "Forearm.R",
+      "parent": "UpperArm.R",
+      "length": 0.11538631423703807
+    },
+    {
+      "name": "Hand.R",
+      "parent": "Forearm.R",
+      "length": 0.03021589267893972
+    },
+    {
+      "name": "Thumb1.R",
+      "parent": "Hand.R",
+      "length": 0.012716986435751268
+    },
+    {
+      "name": "Thumb2.R",
+      "parent": "Thumb1.R",
+      "length": 0.01028807449528305
+    },
+    {
+      "name": "Thumb3.R",
+      "parent": "Thumb2.R",
+      "length": 0.007233680740242153
+    },
+    {
+      "name": "Index1.R",
+      "parent": "Hand.R",
+      "length": 0.016359833376595866
+    },
+    {
+      "name": "Index2.R",
+      "parent": "Index1.R",
+      "length": 0.013810517308918722
+    },
+    {
+      "name": "Index3.R",
+      "parent": "Index2.R",
+      "length": 0.010173001608715556
+    },
+    {
+      "name": "Middle1.R",
+      "parent": "Hand.R",
+      "length": 0.017322656079375488
+    },
+    {
+      "name": "Middle2.R",
+      "parent": "Middle1.R",
+      "length": 0.015576827820580787
+    },
+    {
+      "name": "Middle3.R",
+      "parent": "Middle2.R",
+      "length": 0.008186987847284255
+    },
+    {
+      "name": "Ring1.R",
+      "parent": "Hand.R",
+      "length": 0.016380613657396438
+    },
+    {
+      "name": "Ring2.R",
+      "parent": "Ring1.R",
+      "length": 0.014460580075209438
+    },
+    {
+      "name": "Ring3.R",
+      "parent": "Ring2.R",
+      "length": 0.007277532136727798
+    },
+    {
+      "name": "Little1.R",
+      "parent": "Hand.R",
+      "length": 0.011554066411618392
+    },
+    {
+      "name": "Little2.R",
+      "parent": "Little1.R",
+      "length": 0.010262235642863998
+    },
+    {
+      "name": "Little3.R",
+      "parent": "Little2.R",
+      "length": 0.015312503773328972
+    },
+    {
+      "name": "Thigh.L",
+      "parent": "Hips",
+      "length": 0.1912929499086302
+    },
+    {
+      "name": "Shin.L",
+      "parent": "Thigh.L",
+      "length": 0.11546861856160148
+    },
+    {
+      "name": "Foot.L",
+      "parent": "Shin.L",
+      "length": 0.08542833141079989
+    },
+    {
+      "name": "Toes.L",
+      "parent": "Foot.L",
+      "length": 0.04504441786662906
+    },
+    {
+      "name": "Thigh.R",
+      "parent": "Hips",
+      "length": 0.1912929499086302
+    },
+    {
+      "name": "Shin.R",
+      "parent": "Thigh.R",
+      "length": 0.11546861856160148
+    },
+    {
+      "name": "Foot.R",
+      "parent": "Shin.R",
+      "length": 0.08542833141079989
+    },
+    {
+      "name": "Toes.R",
+      "parent": "Foot.R",
+      "length": 0.04504441786662906
+    }
+  ],
+  "weights": {
+    "vertices": 3332,
+    "unweighted": 0,
+    "over_four_influences": 0,
+    "unnormalized": 0,
+    "invalid_weights": 0
+  },
+  "placement": null,
+  "ik": [
+    {
+      "chain": "Forearm.L",
+      "pole_angle": 1.6364207066698835,
+      "rest_rotation_error_radians": 0.0,
+      "target_error": 2.60770320892334e-08
+    },
+    {
+      "chain": "Forearm.R",
+      "pole_angle": 2.003114382513892,
+      "rest_rotation_error_radians": 0.0,
+      "target_error": 1.1250129990683123e-07
+    },
+    {
+      "chain": "Shin.L",
+      "pole_angle": 1.5554374293773467,
+      "rest_rotation_error_radians": 0.0,
+      "target_error": 1.2592156261802823e-07
+    },
+    {
+      "chain": "Shin.R",
+      "pole_angle": 1.5395549331841976,
+      "rest_rotation_error_radians": 0.0,
+      "target_error": 8.983763672304662e-08
+    }
+  ],
+  "rest_pose_max_error": 1.2310379476739693e-07,
+  "seam_weight_max_error": 8.940696716308594e-08,
+  "opposite_limb_vertices": 0,
+  "self_intersection": {
+    "baseline_pairs": 3,
+    "clips": {
+      "Idle": {
+        "bad_count": 121,
+        "torso_pairs": 3,
+        "sample_pairs": [
+          [
+            990,
+            1129,
+            "Clavicle.R",
+            "Chest"
+          ],
+          [
+            1038,
+            1184,
+            "Clavicle.R",
+            "Chest"
+          ],
+          [
+            1038,
+            1185,
+            "Clavicle.R",
+            "Chest"
+          ]
+        ]
+      },
+      "Jump": {
+        "bad_count": 73,
+        "torso_pairs": 0,
+        "sample_pairs": []
+      },
+      "Run": {
+        "bad_count": 61,
+        "torso_pairs": 0,
+        "sample_pairs": []
+      },
+      "SwordSlash": {
+        "bad_count": 61,
+        "torso_pairs": 26,
+        "sample_pairs": [
+          [
+            0,
+            1434,
+            "Middle3.R",
+            "Chest"
+          ],
+          [
+            0,
+            1480,
+            "Middle3.R",
+            "Chest"
+          ],
+          [
+            0,
+            1706,
+            "Middle3.R",
+            "Chest"
+          ],
+          [
+            1,
+            1434,
+            "Middle3.R",
+            "Chest"
+          ],
+          [
+            1,
+            1480,
+            "Middle3.R",
+            "Chest"
+          ],
+          [
+            1,
+            1706,
+            "Middle3.R",
+            "Chest"
+          ],
+          [
+            2,
+            1434,
+            "Index3.R",
+            "Chest"
+          ],
+          [
+            2,
+            1480,
+            "Index3.R",
+            "Chest"
+          ]
+        ]
+      }
+    },
+    "sample_rate_hz": 60
+  },
+  "notes": {
+    "clips": [
+      {
+        "name": "Idle",
+        "start": 1,
+        "end": 61,
+        "duration": 2.0,
+        "loop": true,
+        "authored_pose_frames": [
+          1,
+          21,
+          33,
+          48,
+          61
+        ],
+        "authored_poses": 4
+      },
+      {
+        "name": "Run",
+        "start": 1,
+        "end": 31,
+        "duration": 1.0,
+        "loop": true,
+        "authored_pose_frames": [
+          1,
+          4,
+          7,
+          10,
+          13,
+          16,
+          20,
+          24,
+          27,
+          31
+        ],
+        "authored_poses": 9
+      },
+      {
+        "name": "Jump",
+        "start": 1,
+        "end": 37,
+        "duration": 1.2,
+        "loop": false,
+        "authored_pose_frames": [
+          1,
+          8,
+          11,
+          16,
+          21,
+          26,
+          31,
+          37
+        ],
+        "authored_poses": 8
+      },
+      {
+        "name": "SwordSlash",
+        "start": 1,
+        "end": 31,
+        "duration": 1.0,
+        "loop": false,
+        "authored_pose_frames": [
+          1,
+          9,
+          12,
+          15,
+          22,
+          26,
+          31
+        ],
+        "authored_poses": 7
+      }
+    ],
+    "idle_bookends": "Run/Jump/SwordSlash frame 1 and last frame copy Idle frame 1.",
+    "naming": {
+      "armature": "RIG-gnome",
+      "mesh": "GEO-gnome",
+      "schema": "biped_humanoid_v1"
+    }
+  }
+}

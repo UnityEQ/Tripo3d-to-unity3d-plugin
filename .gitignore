@@ -114,3 +114,6 @@ InitTestScene*.unity*
 /[Aa]ssets/[Tt]ripo[Mm]odels/**
 !/[Aa]ssets/[Tt]ripo[Mm]odels.meta
 !/[Aa]ssets/[Tt]ripo[Mm]odels/.gitkeep
+!/[Aa]ssets/[Tt]ripo[Mm]odels/gnome/
+!/[Aa]ssets/[Tt]ripo[Mm]odels/gnome/**
+!/[Aa]ssets/[Tt]ripo[Mm]odels/gnome.meta
