@@ -206,7 +206,7 @@ namespace Tripo3D.Editor
                 + "2. " + jobJsonPath + "\n"
                 + "3. " + standardMd + "  (entire file — the rig + clip contract)\n"
                 + "4. " + fbxMd + "  (entire file — Unity FBX / texture export)\n\n"
-                + "Then follow that prompt file. Drive Blender (MCP execute_blender_code and/or headless blender.exe) through inventory, skeleton, bone weights, then author Idle / Run / Jump / SwordSlash with no self-intersection (arms/legs must not pass through the torso or each other; SwordSlash arcs in front of the chest, not through it). Keep arms in a normal silhouette — hang/pump/slash close to the body; do not splay them wide to avoid clipping. Then validate and Unity FBX export with those clips. Do not load "
+                + "Then follow that prompt file. Drive Blender (MCP execute_blender_code and/or headless blender.exe) through inventory, skeleton, then §4 weights (heat is first pass; isolate leaks; pose 90° elbow/knee/shoulder/crotch and paint 3–5-loop bands; four influences; no twist bones). Then author Idle first and Run / Jump / SwordSlash so each of those three starts and ends on the Idle stand (smooth Unity transitions; do not start mid-stride, mid-crouch, or mid-slash). No self-intersection (arms/legs must not pass through the torso or each other; SwordSlash arcs in front of the chest, not through it). Keep arms in a normal silhouette — hang/pump/slash close to the body; do not splay them wide to avoid clipping. Then validate and Unity FBX export with those clips. Do not load "
                 + schemaJson
                 + " into the chat — pass its path to Tools/Blender/biped_humanoid_v1/run.py --schema.";
         }
