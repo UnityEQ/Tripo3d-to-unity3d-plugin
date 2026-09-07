@@ -49,7 +49,7 @@ public sealed class GnomeCinematicPreview : MonoBehaviour
             lookAt.enabled = false;
 
         brain.DefaultBlend = new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.Cut, 0f);
-        SetLive(wide, 14f, 16f, 1f);
+        SetLive(wide, 14f, 6f, 1f);
         yield return null;
         brain.DefaultBlend = new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.EaseInOut, 1.45f);
 
@@ -61,26 +61,26 @@ public sealed class GnomeCinematicPreview : MonoBehaviour
             var slash = ClipLength("SwordSlash", 1f);
 
             PlayState("Idle");
-            SetLive(wide, 16f, 15f, 1.05f);
+            SetLive(wide, 16f, 5f, 1.05f);
             yield return Wait(idle * 2f);
 
-            SetLive(portrait, 10f, 18f, 0.72f);
+            SetLive(portrait, 10f, 8f, 0.72f);
             yield return Wait(idle * 1.5f);
 
             PlayState("Run");
-            SetLive(runArc, 38f, 9f, 0.9f);
+            SetLive(runArc, 38f, -1f, 0.9f);
             yield return Wait(Mathf.Max(run * 3f, 3f));
 
             PlayState("Jump");
-            SetLive(hero, 8f, 5f, 0.82f);
+            SetLive(hero, 8f, -5f, 0.82f);
             yield return Wait(jump + 0.45f);
 
             PlayState("SwordSlash");
-            SetLive(portrait, 22f, 12f, 0.78f);
+            SetLive(portrait, 22f, 2f, 0.78f);
             yield return Wait(slash + 0.55f);
 
             PlayState("Idle");
-            SetLive(wide, 18f, 14f, 1.08f);
+            SetLive(wide, 18f, 4f, 1.08f);
             yield return Wait(idle * 1.5f);
         }
         while (loop);
@@ -124,10 +124,10 @@ public sealed class GnomeCinematicPreview : MonoBehaviour
 
         var height = SubjectHeight();
         var look = new Vector3(0f, height * 0.55f, 0f);
-        wide = GetOrCreateShot("CM Wide", height * 2.15f, 16f, 40f, look, 0f);
-        portrait = GetOrCreateShot("CM Portrait", height * 1.28f, 18f, 28f, look, 35f);
-        runArc = GetOrCreateShot("CM Run", height * 1.7f, 8f, 34f, look, 125f);
-        hero = GetOrCreateShot("CM Hero", height * 1.5f, 4f, 32f, look, 210f);
+        wide = GetOrCreateShot("CM Wide", height * 2.15f, 6f, 40f, look, 0f);
+        portrait = GetOrCreateShot("CM Portrait", height * 1.28f, 8f, 28f, look, 35f);
+        runArc = GetOrCreateShot("CM Run", height * 1.7f, -2f, 34f, look, 125f);
+        hero = GetOrCreateShot("CM Hero", height * 1.5f, -6f, 32f, look, 210f);
         return true;
     }
 
@@ -163,7 +163,7 @@ public sealed class GnomeCinematicPreview : MonoBehaviour
         orbit.HorizontalAxis.Range = new Vector2(-180f, 180f);
         orbit.HorizontalAxis.Recentering.Enabled = false;
         orbit.HorizontalAxis.Value = startYaw;
-        orbit.VerticalAxis.Range = new Vector2(-8f, 40f);
+        orbit.VerticalAxis.Range = new Vector2(-20f, 40f);
         orbit.VerticalAxis.Wrap = false;
         orbit.VerticalAxis.Recentering.Enabled = false;
         orbit.VerticalAxis.Value = pitch;

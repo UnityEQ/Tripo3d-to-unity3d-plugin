@@ -6,6 +6,9 @@ public sealed class LookAtTarget : MonoBehaviour
     public Transform target;
     public Vector3 worldOffset = new Vector3(0f, 0.75f, 0f);
     public bool useRendererBounds = true;
+    [Range(-35f, 25f)]
+    [Tooltip("Camera tilt in degrees. Negative looks up, positive looks down.")]
+    public float extraPitch = -10f;
 
     void LateUpdate()
     {
@@ -15,7 +18,7 @@ public sealed class LookAtTarget : MonoBehaviour
         var dir = aim - transform.position;
         if (dir.sqrMagnitude < 1e-8f)
             return;
-        transform.rotation = Quaternion.LookRotation(dir.normalized, Vector3.up);
+        transform.rotation = Quaternion.LookRotation(dir.normalized, Vector3.up) * Quaternion.Euler(extraPitch, 0f, 0f);
     }
 
     Vector3 AimPoint()
