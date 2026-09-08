@@ -117,3 +117,6 @@ InitTestScene*.unity*
 !/[Aa]ssets/[Tt]ripo[Mm]odels/gnome/
 !/[Aa]ssets/[Tt]ripo[Mm]odels/gnome/**
 !/[Aa]ssets/[Tt]ripo[Mm]odels/gnome.meta
+!/[Aa]ssets/[Tt]ripo[Mm]odels/robot/
+!/[Aa]ssets/[Tt]ripo[Mm]odels/robot/**
+!/[Aa]ssets/[Tt]ripo[Mm]odels/robot.meta
