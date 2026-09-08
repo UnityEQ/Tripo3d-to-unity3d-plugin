@@ -66,6 +66,15 @@ namespace Tripo3D.Editor
             set => EditorPrefs.SetString(PrefsApiKey, value ?? string.Empty);
         }
 
+        public static string ApiKeyFilePath
+        {
+            get
+            {
+                var projectRoot = Path.GetDirectoryName(Application.dataPath);
+                return Path.GetFullPath(Path.Combine(projectRoot ?? string.Empty, "UserSettings", "Tripo3D.settings.json"));
+            }
+        }
+
         public static string Model
         {
             get => EditorPrefs.GetString(PrefsModel, DefaultModel);
@@ -200,7 +209,7 @@ namespace Tripo3D.Editor
         {
             try
             {
-                var path = Path.GetFullPath(TripoPaths.SettingsFile);
+                var path = ApiKeyFilePath;
                 var dir = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
@@ -226,7 +235,7 @@ namespace Tripo3D.Editor
                 return;
             }
 
-            var path = Path.GetFullPath(TripoPaths.SettingsFile);
+            var path = ApiKeyFilePath;
             if (!File.Exists(path))
                 return;
 

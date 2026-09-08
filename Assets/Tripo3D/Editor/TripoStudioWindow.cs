@@ -560,14 +560,14 @@ namespace Tripo3D.Editor
             _apiKeyField = new TextField("Tripo3D API Key") { isPasswordField = true, value = TripoSettings.ApiKey };
             card.Add(_apiKeyField);
 
-            var keyPath = Path.GetFullPath(TripoPaths.SettingsFile);
-            var keyHint = new Label("Save writes the key to this machine only (never under Assets/, gitignored).");
+            var keyPath = TripoSettings.ApiKeyFilePath;
+            var keyHint = new Label("Save writes the key on this machine only (never under Assets/, gitignored). The file path is this Unity project's UserSettings folder, so it follows whoever opened the project.");
             keyHint.AddToClassList("hint");
             card.Add(keyHint);
-            var prefsHint = new Label("Unity EditorPrefs key: Tripo3D.ApiKey");
+            var prefsHint = new Label("Unity EditorPrefs on this Windows/Mac user (key Tripo3D.ApiKey) — not a file in the repo.");
             prefsHint.AddToClassList("hint");
             card.Add(prefsHint);
-            var pathField = new TextField("Settings file") { value = keyPath, isReadOnly = true };
+            var pathField = new TextField("Settings file (this project)") { value = keyPath, isReadOnly = true };
             card.Add(pathField);
             var envHint = new Label("You can also set the TRIPO_API_KEY environment variable.");
             envHint.AddToClassList("hint");

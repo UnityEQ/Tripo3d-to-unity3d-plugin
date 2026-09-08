@@ -32,7 +32,7 @@ Also in the project: `com.unity.cloud.gltfast` for GLB import.
 1. Open this folder as a Unity project, or copy `Assets/Tripo3D/`, `Tools/Blender/`, and the spec files at the repo root into another project.
 2. **Tripo 3D → Setup and Install Packages** (or Studio → **Setup**). Install anything it marks as missing from the Unity registry.
 3. **Tripo 3D → Studio → Settings**.
-4. Paste your Tripo3D API key and click **Save Tripo3D API Key**. Settings shows the two write locations: Unity EditorPrefs (`Tripo3D.ApiKey`) and `UserSettings/Tripo3D.settings.json` (project folder, gitignored, not under `Assets/`). You can also set `TRIPO_API_KEY`.
+4. Paste your Tripo3D API key and click **Save Tripo3D API Key**. Settings shows the two write locations for **this** Unity project / this machine: Unity EditorPrefs (`Tripo3D.ApiKey`, per OS user) and `<this-project>/UserSettings/Tripo3D.settings.json` (resolved from the open project folder, gitignored, not under `Assets/`). You can also set `TRIPO_API_KEY`.
 5. Confirm **Blender.exe**. Browse if the auto-detect misses it.
 6. Pick an **AI agent**: Grok or ChatGPT. Optional: point **Grok.exe** / **Codex.exe** if they are not on PATH.
 
