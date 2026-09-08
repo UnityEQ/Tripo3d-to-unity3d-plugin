@@ -14,6 +14,35 @@ namespace Tripo3D.Editor
             GnomeStudioDirector.Spot.Left
         };
 
+        SerializedProperty studioCameraProperty;
+        SerializedProperty followProperty;
+        SerializedProperty subjectProperty;
+        SerializedProperty rackFocusProperty;
+        SerializedProperty environmentLightProperty;
+        SerializedProperty orbitProperty;
+        SerializedProperty distanceProperty;
+        SerializedProperty heightProperty;
+        SerializedProperty daylightProperty;
+        SerializedProperty orbitSpeedProperty;
+        SerializedProperty orbitOnPlayProperty;
+        SerializedProperty orbitingProperty;
+
+        void OnEnable()
+        {
+            studioCameraProperty = serializedObject.FindProperty("studioCamera");
+            followProperty = serializedObject.FindProperty("follow");
+            subjectProperty = serializedObject.FindProperty("subject");
+            rackFocusProperty = serializedObject.FindProperty("rackFocus");
+            environmentLightProperty = serializedObject.FindProperty("environmentLight");
+            orbitProperty = serializedObject.FindProperty("orbit");
+            distanceProperty = serializedObject.FindProperty("distance");
+            heightProperty = serializedObject.FindProperty("height");
+            daylightProperty = serializedObject.FindProperty("daylight");
+            orbitSpeedProperty = serializedObject.FindProperty("orbitSpeed");
+            orbitOnPlayProperty = serializedObject.FindProperty("orbitOnPlay");
+            orbitingProperty = serializedObject.FindProperty("orbiting");
+        }
+
         public override bool RequiresConstantRepaint()
         {
             return ((GnomeStudioDirector)target).orbiting;
@@ -23,16 +52,16 @@ namespace Tripo3D.Editor
         {
             var director = (GnomeStudioDirector)target;
             serializedObject.Update();
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("studioCamera"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("follow"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("subject"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("rackFocus"));
+            EditorGUILayout.PropertyField(studioCameraProperty);
+            EditorGUILayout.PropertyField(followProperty);
+            EditorGUILayout.PropertyField(subjectProperty);
+            EditorGUILayout.PropertyField(rackFocusProperty);
             serializedObject.ApplyModifiedProperties();
             EditorGUILayout.Space(8f);
 
             EditorGUILayout.LabelField("Environment", EditorStyles.boldLabel);
             serializedObject.Update();
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("environmentLight"));
+            EditorGUILayout.PropertyField(environmentLightProperty);
             serializedObject.ApplyModifiedProperties();
             EditorGUILayout.Space(8f);
 
@@ -63,10 +92,10 @@ namespace Tripo3D.Editor
 
             serializedObject.Update();
             EditorGUI.BeginChangeCheck();
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("orbit"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("distance"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("height"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("daylight"));
+            EditorGUILayout.PropertyField(orbitProperty);
+            EditorGUILayout.PropertyField(distanceProperty);
+            EditorGUILayout.PropertyField(heightProperty);
+            EditorGUILayout.PropertyField(daylightProperty);
             if (EditorGUI.EndChangeCheck())
             {
                 serializedObject.ApplyModifiedProperties();
@@ -81,8 +110,8 @@ namespace Tripo3D.Editor
                 "Play orbit runs one loop: Orbit, Distance, Height, and Daylight all slide together. Stop freezes the sliders where they are.",
                 MessageType.Info);
             serializedObject.Update();
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("orbitSpeed"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("orbitOnPlay"));
+            EditorGUILayout.PropertyField(orbitSpeedProperty);
+            EditorGUILayout.PropertyField(orbitOnPlayProperty);
             serializedObject.ApplyModifiedProperties();
 
             EditorGUILayout.BeginHorizontal();
@@ -93,7 +122,7 @@ namespace Tripo3D.Editor
             {
                 Undo.RecordObject(director, "Play orbit");
                 director.StartOrbit();
-                serializedObject.FindProperty("orbiting").boolValue = true;
+                orbitingProperty.boolValue = true;
                 serializedObject.ApplyModifiedProperties();
                 EditorUtility.SetDirty(director);
             }
@@ -103,7 +132,7 @@ namespace Tripo3D.Editor
             {
                 Undo.RecordObject(director, "Stop orbit");
                 director.StopOrbit();
-                serializedObject.FindProperty("orbiting").boolValue = false;
+                orbitingProperty.boolValue = false;
                 serializedObject.ApplyModifiedProperties();
                 EditorUtility.SetDirty(director);
             }

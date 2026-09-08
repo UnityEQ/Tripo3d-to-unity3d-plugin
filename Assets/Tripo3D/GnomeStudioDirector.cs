@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -53,6 +54,9 @@ public sealed class GnomeStudioDirector : MonoBehaviour
     public float orbitSpeed = 46f;
     [Tooltip("Start orbiting when Play Mode begins.")]
     public bool orbitOnPlay = true;
+
+    // Refill on each query so hierarchy changes and animated bounds stay live.
+    readonly List<Renderer> renderers = new List<Renderer>();
 
     DepthOfField dof;
     ColorAdjustments colorAdjust;
@@ -318,11 +322,11 @@ public sealed class GnomeStudioDirector : MonoBehaviour
 
         if (t == null)
             return 180f;
-        var renderers = t.GetComponentsInChildren<Renderer>();
-        if (renderers == null || renderers.Length == 0)
+        t.GetComponentsInChildren(false, renderers);
+        if (renderers.Count == 0)
             return 180f;
         var bounds = renderers[0].bounds;
-        for (var i = 1; i < renderers.Length; i++)
+        for (var i = 1; i < renderers.Count; i++)
             bounds.Encapsulate(renderers[i].bounds);
         return bounds.size.x <= bounds.size.z ? -90f : 180f;
     }
@@ -376,44 +380,44 @@ public sealed class GnomeStudioDirector : MonoBehaviour
             CacheDof();
         if (colorAdjust != null)
         {
-            colorAdjust.postExposure.Override(Mathf.Lerp(-1.15f, 0.2f, t));
-            colorAdjust.contrast.Override(Mathf.Lerp(10f, 18f, t));
-            colorAdjust.saturation.Override(Mathf.Lerp(-6f, 8f, t));
-            colorAdjust.colorFilter.Override(Color.Lerp(new Color(0.58f, 0.7f, 1f), new Color(1f, 0.97f, 0.93f), t));
+            colorAdjust.postExposure.Override(Mathf.Lerp(0.0f, 0.15f, t));
+            colorAdjust.contrast.Override(Mathf.Lerp(10f, 12f, t));
+            colorAdjust.saturation.Override(Mathf.Lerp(-8f, -4f, t));
+            colorAdjust.colorFilter.Override(Color.Lerp(new Color(0.94f, 0.97f, 1f), new Color(1f, 0.99f, 0.97f), t));
         }
 
         if (whiteBalance != null)
         {
-            whiteBalance.temperature.Override(Mathf.Lerp(-28f, 10f, t));
-            whiteBalance.tint.Override(Mathf.Lerp(6f, -2f, t));
+            whiteBalance.temperature.Override(Mathf.Lerp(-5f, 3f, t));
+            whiteBalance.tint.Override(Mathf.Lerp(1f, 0f, t));
         }
 
         if (splitToning != null)
         {
-            splitToning.shadows.Override(Color.Lerp(new Color(0.12f, 0.2f, 0.48f), new Color(0.28f, 0.38f, 0.52f), t));
-            splitToning.highlights.Override(Color.Lerp(new Color(0.45f, 0.55f, 0.85f), new Color(1f, 0.84f, 0.68f), t));
+            splitToning.shadows.Override(Color.Lerp(new Color(0.46f, 0.49f, 0.53f), new Color(0.48f, 0.50f, 0.52f), t));
+            splitToning.highlights.Override(Color.Lerp(new Color(0.55f, 0.52f, 0.48f), new Color(0.54f, 0.52f, 0.49f), t));
         }
 
         if (bloom != null)
         {
-            bloom.threshold.Override(Mathf.Lerp(0.55f, 0.78f, t));
-            bloom.intensity.Override(Mathf.Lerp(0.55f, 0.34f, t));
+            bloom.threshold.Override(Mathf.Lerp(1.05f, 1.15f, t));
+            bloom.intensity.Override(Mathf.Lerp(0.16f, 0.12f, t));
             bloom.tint.Override(Color.Lerp(new Color(0.65f, 0.78f, 1f), new Color(1f, 0.95f, 0.88f), t));
         }
 
         if (vignette != null)
         {
-            vignette.intensity.Override(Mathf.Lerp(0.38f, 0.22f, t));
+            vignette.intensity.Override(Mathf.Lerp(0.18f, 0.14f, t));
             vignette.color.Override(Color.Lerp(new Color(0.02f, 0.03f, 0.08f), new Color(0.04f, 0.025f, 0.02f), t));
         }
 
         SetLightIntensity("Fill Light", Mathf.Lerp(0.9f, 3.2f, t));
         SetLightIntensity("Soft Overhead", Mathf.Lerp(0.55f, 1.55f, t));
         SetLightIntensity("Rim Light", Mathf.Lerp(2.2f, 6.5f, t));
-        SetLightIntensity("Deco Uplight 1", Mathf.Lerp(2.8f, 1.55f, t));
-        SetLightIntensity("Deco Uplight 2", Mathf.Lerp(2.8f, 1.55f, t));
-        SetLightIntensity("Deco Uplight 3", Mathf.Lerp(2.8f, 1.55f, t));
-        SetLightIntensity("Deco Uplight 4", Mathf.Lerp(2.8f, 1.55f, t));
+        SetLightIntensity("Deco Uplight 1", Mathf.Lerp(1.45f, 1.1f, t));
+        SetLightIntensity("Deco Uplight 2", Mathf.Lerp(1.45f, 1.1f, t));
+        SetLightIntensity("Deco Uplight 3", Mathf.Lerp(1.45f, 1.1f, t));
+        SetLightIntensity("Deco Uplight 4", Mathf.Lerp(1.45f, 1.1f, t));
     }
 
     Light FindEnvironmentLight()
@@ -475,11 +479,11 @@ public sealed class GnomeStudioDirector : MonoBehaviour
             return;
         Gizmos.color = new Color(1f, 0.82f, 0.2f, 0.95f);
         Gizmos.DrawWireSphere(aim.position, 0.07f);
-        var spots = new[] { Spot.Front, Spot.Right, Spot.Back, Spot.Left };
-        for (var i = 0; i < spots.Length; i++)
+        for (var i = 0; i < 4; i++)
         {
-            var pos = SpotPosition(spots[i]);
-            var live = spots[i] == spot && Mathf.Abs(Mathf.DeltaAngle(orbit, OrbitOf(spots[i]))) < 1f;
+            var at = (Spot)i;
+            var pos = SpotPosition(at);
+            var live = at == spot && Mathf.Abs(Mathf.DeltaAngle(orbit, OrbitOf(at))) < 1f;
             Gizmos.color = live ? new Color(0.4f, 0.85f, 1f, 0.95f) : new Color(1f, 0.82f, 0.2f, 0.45f);
             Gizmos.DrawWireSphere(pos, live ? 0.09f : 0.06f);
             Gizmos.DrawLine(aim.position, pos);

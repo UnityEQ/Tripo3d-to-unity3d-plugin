@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 [ExecuteAlways]
@@ -29,6 +30,9 @@ public sealed class LookAtTarget : MonoBehaviour
 
     [SerializeField, HideInInspector] bool orbitInitialized;
     [SerializeField, HideInInspector] float orbitRadius = 2f;
+
+    // Refill on each query so hierarchy changes and animated bounds stay live.
+    readonly List<Renderer> renderers = new List<Renderer>();
 
     float appliedYaw = float.NaN;
     float appliedPitch = float.NaN;
@@ -118,11 +122,11 @@ public sealed class LookAtTarget : MonoBehaviour
     {
         if (useRendererBounds)
         {
-            var renderers = target.GetComponentsInChildren<Renderer>();
-            if (renderers != null && renderers.Length > 0)
+            target.GetComponentsInChildren(false, renderers);
+            if (renderers.Count > 0)
             {
                 var bounds = renderers[0].bounds;
-                for (var i = 1; i < renderers.Length; i++)
+                for (var i = 1; i < renderers.Count; i++)
                     bounds.Encapsulate(renderers[i].bounds);
                 return bounds.center + Vector3.up * (bounds.extents.y * 0.12f);
             }

@@ -82,12 +82,8 @@ namespace Tripo3D.Editor
                 return;
             if (GameObject.Find(StudioName) != null)
             {
-                var gnome = FindGnome();
-                EnsureLookAt();
-                EnsureSet(gnome);
-                EnsureCharacterOnlyFill(gnome);
-                EnsureCinematic(gnome);
-                EnsureDirector(gnome);
+                // Existing studios contain authored lighting and camera settings.
+                // Rebuild only through the explicit Setup / Refresh Look commands.
                 return;
             }
 
@@ -957,7 +953,12 @@ namespace Tripo3D.Editor
         {
             if (profile.TryGet<T>(out var component) && component != null)
                 return component;
-            return profile.Add<T>(true);
+            component = profile.Add<T>(true);
+            // Volume overrides must be sub-assets to survive an Editor reload.
+            if (AssetDatabase.Contains(profile))
+                AssetDatabase.AddObjectToAsset(component, profile);
+            EditorUtility.SetDirty(profile);
+            return component;
         }
     }
 }
