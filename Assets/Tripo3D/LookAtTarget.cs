@@ -46,10 +46,6 @@ public sealed class LookAtTarget : MonoBehaviour
         orbitPitch = Mathf.Clamp(orbitPitch, MinPitch, MaxPitch);
         if (target == null)
             return;
-        if (!orbitInitialized || orbitRadius < MinRadius)
-            ReadOrbitFromPose();
-        else
-            ApplyOrbit();
         ApplyLook();
     }
 
