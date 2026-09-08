@@ -14,7 +14,6 @@ Do not promise a perfect rig or zero deformation in every possible pose. Verify 
 - Working reference rig: the character's `*_rigged.blend` (saved beside the export).
 - Reference validation: the character's `*_rig_validation.json` / rig notes beside the export.
 - Texture and FBX companion: `Lychee Model GLB - Blender FBX - Unity.md` (project root).
-- Skeleton diagnostic sheet: `examples.png` (project root) — Character Forge / Humanoid v1 stick figures. Six **bind poses**, Front Y/Z and Side X/Z, Standard vs Stocky, centimeters. **Not** Idle / Run / Jump / SwordSlash, and not a second bone list (the caption’s “53 bones” is that sheet; this schema still exports **52** named bones).
 
 Schema ID: `biped_humanoid_v1`. Never silently overwrite the reference matrices with a newly fitted character. Save each character's fitted manifest separately. Changes to core names, parents, coordinate conventions, or reference pose require a new schema version and an explicit migration.
 
@@ -34,7 +33,7 @@ Do not invert stages: inventory → landmark-fit this mesh → enclosure of **pi
 - Record source, schema, script and parameter hashes plus Blender/Unity versions beside each checkpoint. Reuse a stage only when its inputs match and its recorded checks passed. This is an execution convention, not an automatic cache implemented by the current helpers.
 - Repair the earliest failing stage. A clip-only change needs that clip's motion checks and a refreshed final export/Unity check; it does not need another heat bind. Changes to mesh, rest skeleton or weights invalidate all dependent animation and export checks. Material changes require appearance/import checks.
 - Keep full logs, matrices, mesh arrays and collision summaries on disk. Return a compact status, failed check/count, affected clip/time and report paths. Read detailed output only for the current failure. Display images through image tools, never as base64 text.
-- **Five contact sheets, then stop:** one §4d diagnostic montage matching `examples.png` (bone overlay, then solid mesh), Idle (4 poses), Run **side**, Jump **side**, Slash **front+side**. Open those sheets. Do not render or open per-frame collision PNGs, and do not dump half-frame overlap pairs into chat.
+- **Five contact sheets, then stop:** one §4d diagnostic montage (bone overlay, then solid mesh), Idle (4 poses), Run **side**, Jump **side**, Slash **front+side**. Open those sheets. Do not render or open per-frame collision PNGs, and do not dump half-frame overlap pairs into chat.
 - IK rest match within a few millimeters is enough. Sub-millimeter CTRL chasing is wasted work.
 - Review clips in playback and those contact sheets of the **authored extremes**, not dozens of near-identical full-resolution frames. Preserve the complete motion review and numerical checks below, including natural arm posture; clearance alone does not establish animation quality.
 - Run final checks against the actual latest exported FBX and Unity Humanoid deformation. Key reports to that artifact's hash, not just its filename. Sampling can detect penetration but cannot prove continuous collision freedom.
@@ -199,7 +198,7 @@ Keep fitting, skeleton construction, controls, skinning, validation, and export 
 - Optional Blender controls: separate non-deforming bones. They do not replace the export skeleton.
 - Optional facial, ear, hair, tail, equipment, or additional-digit bones: use an `EXT_` prefix and attach as children without renaming or reparenting core bones. Record extensions in the character manifest.
 
-For short, tall, broad, thin, or differently proportioned humanoids, fit landmarks and regenerate bind data. Do not merely scale the elf's skeleton and reuse its weights. `examples.png` is the picture of that: **Standard** vs **Stocky** keep the same six diagnostic *angles* (Reference A-pose, ArmsRaised V, ElbowFlex ~90° with forearm forward, KneeFlex ~90° with shin back, Fist, SpineTwist). Only translations and bone lengths change. A wide-shoulder, short-limb, robot, or armor mesh is the **Stocky** row — copy those proportions, not the elf’s centimeter endpoints. For missing physical digits, preserve the schema's semantic bones as documented unused bones; do not invent visible geometry or assign stray weights just to give them influence.
+For short, tall, broad, thin, or differently proportioned humanoids, fit landmarks and regenerate bind data. Do not merely scale the elf's skeleton and reuse its weights. **Standard** vs **Stocky** keep the same six diagnostic *angles* (Reference A-pose, ArmsRaised V, ElbowFlex ~90° with forearm forward, KneeFlex ~90° with shin back, Fist, SpineTwist). Only translations and bone lengths change. A wide-shoulder, short-limb, robot, or armor mesh is **Stocky** — copy those proportions, not the elf’s centimeter endpoints. For missing physical digits, preserve the schema's semantic bones as documented unused bones; do not invent visible geometry or assign stray weights just to give them influence.
 
 Digitigrade legs or substantially different anatomy may require additional mechanism bones or a new compatibility profile. Do not force an anatomically incorrect human knee/ankle placement to keep numerical matrices identical. Preserve the core export mapping where it is valid, and explicitly record any incompatibility.
 
@@ -316,11 +315,11 @@ Every intended skinned vertex weighted, sums = 1 within 1e-4, ≤4 deform influe
 
 #### 4d. Weight pose sheet (required before animation)
 
-Match `examples.png` (Character Forge / Humanoid v1). That sheet is the **skeleton diagnostic**, not the gameplay clips. Views: **Front Y/Z** and **Side X/Z** (our +X character-forward, +Z up). Units on the sheet are centimeters. Use the Stocky row when this mesh is wide/short-limbed; use Standard when it is elf-like. Pose *angles* stay the same either way.
+This is the **skeleton diagnostic**, not the gameplay clips. Views: **Front Y/Z** and **Side X/Z** (our +X character-forward, +Z up). Use Stocky proportions when this mesh is wide/short-limbed; use Standard when it is elf-like. Pose *angles* stay the same either way.
 
 Render **one montage**: bone overlay first (cheap joint check), then solid mesh. Do not dump ten separate beauty stills.
 
-| Pose on the sheet | What it must look like | Side X/Z is the tell | Mesh fail |
+| Pose | What it must look like | Side X/Z is the tell | Mesh fail |
 |---|---|---|---|
 | **Reference** | Shallow A-pose. Arms down-out, not T, not hanging Idle | Almost a straight stacked line; arms slightly in front of the torso | Rest mesh moved, joints outside the volume |
 | **ArmsRaised** | V, not a Y over the head. A little character-forward | Hands in front of the shoulder line, not behind the back | Armpit spike, chest collapsing onto the arm |
@@ -362,7 +361,7 @@ Keep rest skeleton and weights unchanged while authoring clips. See **Animation-
 
 #### Authoring contract (browser / game-efficient, AAA body mechanics)
 
-Goal: mocap-like weight and silhouette from a **small set of posed extremes**, not a key on every bone every frame. Interpolation carries the inbetweens. Dense 30-fps baking of every controller is a failure mode for this job. `examples.png` is the bind diagnostic (A-pose / 90° joints / twist), **not** a clip sheet — do not author Idle hang, Run, Jump, or Slash from those six sticks.
+Goal: mocap-like weight and silhouette from a **small set of posed extremes**, not a key on every bone every frame. Interpolation carries the inbetweens. Dense 30-fps baking of every controller is a failure mode for this job. The §4d six poses are the bind diagnostic (A-pose / 90° joints / twist), **not** a clip sheet — do not author Idle hang, Run, Jump, or Slash from those sticks.
 
 **Keyframe budget (authored poses, not baked samples)**
 
