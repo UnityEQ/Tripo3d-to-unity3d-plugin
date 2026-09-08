@@ -6,7 +6,7 @@ public sealed class GnomeCharacterFill : MonoBehaviour
 {
     [Range(0f, 2f)]
     [Tooltip("Only the gnome fill lights. 1 is the original look, 0.7 is 30% dimmer. Walls and key light stay put.")]
-    public float brightness = 0.7f;
+    public float brightness = 0.029f;
 
     public Light bodyFill;
     public Light eyeLight;

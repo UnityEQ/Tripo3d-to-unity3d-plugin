@@ -51,7 +51,7 @@ public sealed class GnomeStudioDirector : MonoBehaviour
     public bool orbiting;
     [Range(-90f, 90f)]
     [Tooltip("Degrees per second while orbiting. Negative reverses.")]
-    public float orbitSpeed = 46f;
+    public float orbitSpeed = 20f;
     [Tooltip("Start orbiting when Play Mode begins.")]
     public bool orbitOnPlay = true;
 

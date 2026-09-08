@@ -220,7 +220,7 @@ namespace Tripo3D.Editor
             if (created)
             {
                 fill = studioGo.AddComponent<GnomeCharacterFill>();
-                fill.brightness = 0.7f;
+                fill.brightness = 0.029f;
             }
 
             fill.bodyFill = body;
@@ -422,7 +422,7 @@ namespace Tripo3D.Editor
             director.distance = Mathf.Clamp(bounds.size.y * 1.55f, 1.6f, 3.5f);
             director.height = followPos.y + 0.22f;
             director.rackFocus = true;
-            director.orbitSpeed = 46f;
+            director.orbitSpeed = 20f;
             var sun = GameObject.Find("Directional Light");
             director.environmentLight = sun != null ? sun.GetComponent<Light>() : null;
             director.daylight = 1f;

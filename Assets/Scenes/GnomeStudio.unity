@@ -15,15 +15,15 @@ RenderSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 10
   m_Fog: 1
-  m_FogColor: {r: 0.03, g: 0.04, b: 0.09, a: 1}
+  m_FogColor: {r: 0.5259732, g: 0.54437953, b: 0.5691606, a: 1}
   m_FogMode: 3
-  m_FogDensity: 0.012
+  m_FogDensity: 0.004854623
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
-  m_AmbientSkyColor: {r: 0.05, g: 0.07, b: 0.14, a: 1}
+  m_AmbientSkyColor: {r: 0.36103404, g: 0.38103405, b: 0.42581508, a: 1}
   m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
   m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
-  m_AmbientIntensity: 0.28
+  m_AmbientIntensity: 0.88525546
   m_AmbientMode: 3
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
   m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
@@ -35,7 +35,7 @@ RenderSettings:
   m_DefaultReflectionMode: 0
   m_DefaultReflectionResolution: 128
   m_ReflectionBounces: 1
-  m_ReflectionIntensity: 0.28
+  m_ReflectionIntensity: 0.88525546
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
   m_UseRadianceAmbientProbe: 0
@@ -1269,8 +1269,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.20090666, y: 0.677965, z: 0.20090666, w: 0.677965}
-  m_LocalPosition: {x: -1.87, y: 0.05, z: -0.000000081740296}
+  m_LocalRotation: {x: -0.04915708, y: 0.9487181, z: -0.18582004, w: -0.25097513}
+  m_LocalPosition: {x: 2.5615292, y: 3.3752139, z: 4.502639}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1464,7 +1464,7 @@ Light:
   serializedVersion: 13
   m_Type: 2
   m_Color: {r: 1, g: 0.99, b: 0.97, a: 1}
-  m_Intensity: 0.162
+  m_Intensity: 0.03915
   m_Range: 0.95
   m_SpotAngle: 60
   m_InnerSpotAngle: 21.80208
@@ -1762,7 +1762,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6cd65010be058c446bcd270012706537, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GnomeCharacterFill
-  brightness: 0.12
+  brightness: 0.029
   bodyFill: {fileID: 1309689656}
   eyeLight: {fileID: 355035336}
   catchlight: {fileID: 589843987}
@@ -1797,15 +1797,15 @@ MonoBehaviour:
   studioCamera: {fileID: 330585545}
   follow: {fileID: 1553471579}
   subject: {fileID: 1896048171}
-  spot: 0
-  orbit: 0
-  distance: 1.87
-  height: 0.05
+  spot: 1
+  orbit: 119.63534
+  distance: 5.1802692
+  height: 3.3752139
   rackFocus: 1
   environmentLight: {fileID: 410087040}
-  daylight: 0
+  daylight: 0.74723905
   orbiting: 0
-  orbitSpeed: 8.5
+  orbitSpeed: 20
   orbitOnPlay: 1
 --- !u!320 &388953237
 PlayableDirector:
@@ -2096,8 +2096,8 @@ Light:
   m_Enabled: 1
   serializedVersion: 13
   m_Type: 1
-  m_Color: {r: 0.48, g: 0.62, b: 1, a: 1}
-  m_Intensity: 0.18
+  m_Color: {r: 0.9171289, g: 0.90581506, b: 0.9159367, a: 1}
+  m_Intensity: 1.3316666
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -2106,7 +2106,7 @@ Light:
     m_Type: 2
     m_Resolution: -1
     m_CustomResolution: -1
-    m_Strength: 0.55
+    m_Strength: 0.80218977
     m_Bias: 0.05
     m_NormalBias: 0.4
     m_NearPlane: 0.2
@@ -2140,7 +2140,7 @@ Light:
   m_LightShadowCasterMode: 0
   m_AreaSize: {x: 1, y: 1}
   m_BounceIntensity: 1
-  m_ColorTemperature: 8800
+  m_ColorTemperature: 5773.7227
   m_UseColorTemperature: 1
   m_BoundingSphereOverride: {x: 0, y: 0, z: 0, w: 0}
   m_UseBoundingSphereOverride: 0
@@ -2159,7 +2159,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 410087039}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.13077995, y: -0.33869162, z: 0.047600005, w: 0.93054765}
+  m_LocalRotation: {x: 0.35469902, y: -0.24118787, z: 0.09083998, w: 0.8987576}
   m_LocalPosition: {x: -1.73721, y: 3.2, z: -2.20687}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -3012,7 +3012,7 @@ Light:
   serializedVersion: 13
   m_Type: 2
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_Intensity: 0.102
+  m_Intensity: 0.02465
   m_Range: 3.5
   m_SpotAngle: 60
   m_InnerSpotAngle: 21.80208
@@ -3745,7 +3745,7 @@ Light:
   serializedVersion: 13
   m_Type: 2
   m_Color: {r: 1, g: 0.96, b: 0.9, a: 1}
-  m_Intensity: 0.55
+  m_Intensity: 1.3906325
   m_Range: 6.5
   m_SpotAngle: 60
   m_InnerSpotAngle: 21.80208
@@ -4184,7 +4184,7 @@ Light:
   serializedVersion: 13
   m_Type: 2
   m_Color: {r: 1, g: 0.82, b: 0.48, a: 1}
-  m_Intensity: 1.45
+  m_Intensity: 1.1557786
   m_Range: 5.5
   m_SpotAngle: 60
   m_InnerSpotAngle: 21.80208
@@ -4423,7 +4423,7 @@ Light:
   serializedVersion: 13
   m_Type: 2
   m_Color: {r: 1, g: 0.82, b: 0.48, a: 1}
-  m_Intensity: 1.45
+  m_Intensity: 1.1557786
   m_Range: 5.5
   m_SpotAngle: 60
   m_InnerSpotAngle: 21.80208
@@ -4550,7 +4550,7 @@ Light:
   serializedVersion: 13
   m_Type: 2
   m_Color: {r: 1, g: 0.82, b: 0.48, a: 1}
-  m_Intensity: 1.45
+  m_Intensity: 1.1557786
   m_Range: 5.5
   m_SpotAngle: 60
   m_InnerSpotAngle: 21.80208
@@ -4677,7 +4677,7 @@ Light:
   serializedVersion: 13
   m_Type: 2
   m_Color: {r: 1, g: 0.82, b: 0.48, a: 1}
-  m_Intensity: 1.45
+  m_Intensity: 1.1557786
   m_Range: 5.5
   m_SpotAngle: 60
   m_InnerSpotAngle: 21.80208
@@ -5471,7 +5471,7 @@ Light:
   serializedVersion: 13
   m_Type: 2
   m_Color: {r: 1, g: 0.97, b: 0.93, a: 1}
-  m_Intensity: 0.25800002
+  m_Intensity: 0.06235
   m_Range: 2
   m_SpotAngle: 60
   m_InnerSpotAngle: 21.80208
@@ -5642,7 +5642,7 @@ Light:
   serializedVersion: 13
   m_Type: 2
   m_Color: {r: 0.72, g: 0.82, b: 1, a: 1}
-  m_Intensity: 0.9
+  m_Intensity: 2.8334548
   m_Range: 8
   m_SpotAngle: 60
   m_InnerSpotAngle: 21.80208
@@ -7339,7 +7339,7 @@ Light:
   serializedVersion: 13
   m_Type: 0
   m_Color: {r: 1, g: 0.93, b: 0.82, a: 1}
-  m_Intensity: 2.2
+  m_Intensity: 5.81472
   m_Range: 10
   m_SpotAngle: 55
   m_InnerSpotAngle: 21.80208
