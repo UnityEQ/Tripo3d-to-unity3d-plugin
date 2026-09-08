@@ -8,7 +8,9 @@ Run from the project root. Replace the quoted placeholders with the job's paths.
 blender.exe --background --factory-startup --python Tools/Blender/biped_humanoid_v1/run.py -- --glb "INPUT.glb" --out "WORK_DIRECTORY" --slug "CHARACTER" --schema "Biped Humanoid Rig v1 - Reference.json"
 ```
 
-This resets the headless scene, imports the GLB, performs a proportional fit and automatic weighting, then `refine_weights` (opposite-limb / finger isolation, hinge-band spread, four-influence elf prune). It does **not** author the four gameplay clips or finish posed joint-band painting (§4b). Use a working directory for this first pass so it does not replace an approved export. Review material graphs before accepting the helper's flattening behavior.
+This resets the headless scene, imports the GLB, **proportionally scales the elf skeleton** to mesh height, then heat-binds and `refine_weights` (opposite-limb / finger isolation, hinge-band spread, four-influence elf prune). That proportional bind is an import + naming seed, **not** the fitted character. Heat often fails here because elbows/knees missed this mesh. Fit landmarks on this mesh (§2 of the standard), then call `heat_bind` / `refine_weights` again. Do not write a replacement pipeline because the seed heat-failed.
+
+It does **not** author the four gameplay clips or finish posed joint-band painting (§4b). Use `Temp/tripo-ai-jobs/<id>/` (this repo) or another non-Unity workspace — never the Unity Editor `Temp/` folder. Review material graphs before accepting the helper's flattening behavior.
 
 ## Inspect or validate a saved checkpoint
 
@@ -30,7 +32,7 @@ The repair script must save its intended checkpoint explicitly. Export currently
 
 ## Efficient operation
 
-Redirect full process output to a per-stage log, check the exit code, and read a compact report or the relevant error excerpt. Reuse imported Python functions for a bounded repair when appropriate instead of copying entire scripts into a new job. There is currently no automatic checkpoint cache or complete animation/Unity validator in these helpers; follow the standard's dependency and final-validation rules.
+Redirect full process output to a per-stage log, check the exit code, and read a compact report or the relevant error excerpt. Reuse imported Python functions for a bounded repair when appropriate instead of copying entire scripts into a new job. Landmarks and clip targets are the per-character files; do not reimplement IK, heat, or a per-job collision dumper. There is currently no automatic checkpoint cache or complete animation/Unity validator in these helpers; follow the standard's dependency and final-validation rules.
 
 Regression command (Blender required):
 

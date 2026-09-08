@@ -14,6 +14,7 @@ Do not promise a perfect rig or zero deformation in every possible pose. Verify 
 - Working reference rig: the character's `*_rigged.blend` (saved beside the export).
 - Reference validation: the character's `*_rig_validation.json` / rig notes beside the export.
 - Texture and FBX companion: `Lychee Model GLB - Blender FBX - Unity.md` (project root).
+- Skeleton diagnostic sheet: `examples.png` (project root) — Character Forge / Humanoid v1 stick figures. Six **bind poses**, Front Y/Z and Side X/Z, Standard vs Stocky, centimeters. **Not** Idle / Run / Jump / SwordSlash, and not a second bone list (the caption’s “53 bones” is that sheet; this schema still exports **52** named bones).
 
 Schema ID: `biped_humanoid_v1`. Never silently overwrite the reference matrices with a newly fitted character. Save each character's fitted manifest separately. Changes to core names, parents, coordinate conventions, or reference pose require a new schema version and an explicit migration.
 
@@ -23,13 +24,19 @@ The reference has 52 export bones (Root plus 51 deform bones) and eight Blender-
 
 Read this standard and the FBX companion once per task; reread changed sections when either file changes. Parse `Biped Humanoid Rig v1 - Reference.json` in code and pass its path through `--schema`. Keep its matrices out of chat; request only a specific bone or failed comparison when diagnosing a problem. The JSON remains required input, even when its contents are not printed.
 
-Use the existing helpers before creating another pipeline. Their commands and current limits are documented in `Tools/Blender/biped_humanoid_v1/README.md`. A successful first bind or helper validation is not a completed animated Unity rig.
+Use the existing helpers before creating another pipeline. Their commands and current limits are documented in `Tools/Blender/biped_humanoid_v1/README.md`. Import `run.py` functions (`heat_bind`, `refine_weights`, `build_armature`, `validate`, export). Character-specific data is **landmarks + clip targets on disk**. A new two-bone IK solver, BVH collision module, or per-job `idle.py` / `motions.py` / `enclosure.py` / `hitview.py` is a failed execution pattern even if the rig later succeeds.
 
-- Save inventory, fitted/bound, animated, and exported checkpoints outside `Assets` until ready for import. Keep per-character landmarks and motion parameters separate from reusable code.
+`run.py` without landmarks **proportionally scales the elf skeleton**, then heat-binds. That seed often heat-fails and puts joints in the wrong place. Treat it as import + naming only. Heat-fail there means **fit this mesh (§2), then retry heat** — not accept the bind, and not write a replacement binder.
+
+Do not invert stages: inventory → landmark-fit this mesh → enclosure of **pivots** → heat → §4 pose sheet → Idle → Run/Jump/Slash → authored-extreme review → export. Never heat-bind a scaled-elf skeleton and never author clips on an unposed bind.
+
+- Save inventory, fitted/bound, animated, and exported checkpoints under `Temp/tripo-ai-jobs/<id>/` in this repo, or another non-Unity workspace. **Never** the Unity Editor `Temp/` folder (Unity wipes it; a prior run lost its checkpoint that way). Keep per-character landmarks and motion parameters separate from reusable code.
 - Record source, schema, script and parameter hashes plus Blender/Unity versions beside each checkpoint. Reuse a stage only when its inputs match and its recorded checks passed. This is an execution convention, not an automatic cache implemented by the current helpers.
 - Repair the earliest failing stage. A clip-only change needs that clip's motion checks and a refreshed final export/Unity check; it does not need another heat bind. Changes to mesh, rest skeleton or weights invalidate all dependent animation and export checks. Material changes require appearance/import checks.
-- Keep full logs, matrices, mesh arrays and collision pairs on disk. Return a compact status, failed check/count, affected clip/time and report paths. Read detailed output only for the current failure. Display images through image tools, never as base64 text.
-- Review clips in playback and a short contact sheet of the **authored extremes**, not dozens of near-identical full-resolution frames. Preserve the complete motion review and numerical checks below, including natural arm posture; clearance alone does not establish animation quality.
+- Keep full logs, matrices, mesh arrays and collision summaries on disk. Return a compact status, failed check/count, affected clip/time and report paths. Read detailed output only for the current failure. Display images through image tools, never as base64 text.
+- **Five contact sheets, then stop:** one §4d diagnostic montage matching `examples.png` (bone overlay, then solid mesh), Idle (4 poses), Run **side**, Jump **side**, Slash **front+side**. Open those sheets. Do not render or open per-frame collision PNGs, and do not dump half-frame overlap pairs into chat.
+- IK rest match within a few millimeters is enough. Sub-millimeter CTRL chasing is wasted work.
+- Review clips in playback and those contact sheets of the **authored extremes**, not dozens of near-identical full-resolution frames. Preserve the complete motion review and numerical checks below, including natural arm posture; clearance alone does not establish animation quality.
 - Run final checks against the actual latest exported FBX and Unity Humanoid deformation. Key reports to that artifact's hash, not just its filename. Sampling can detect penetration but cannot prove continuous collision freedom.
 - Keep the queued job's status and stage current using the job prompt's lifecycle contract. Claim completion only after all required stages pass. An existing output or an old successful report is insufficient.
 
@@ -192,7 +199,7 @@ Keep fitting, skeleton construction, controls, skinning, validation, and export 
 - Optional Blender controls: separate non-deforming bones. They do not replace the export skeleton.
 - Optional facial, ear, hair, tail, equipment, or additional-digit bones: use an `EXT_` prefix and attach as children without renaming or reparenting core bones. Record extensions in the character manifest.
 
-For short, tall, broad, thin, or differently proportioned humanoids, fit landmarks and regenerate bind data. Do not merely scale the elf's skeleton and reuse its weights. For missing physical digits, preserve the schema's semantic bones as documented unused bones; do not invent visible geometry or assign stray weights just to give them influence.
+For short, tall, broad, thin, or differently proportioned humanoids, fit landmarks and regenerate bind data. Do not merely scale the elf's skeleton and reuse its weights. `examples.png` is the picture of that: **Standard** vs **Stocky** keep the same six diagnostic *angles* (Reference A-pose, ArmsRaised V, ElbowFlex ~90° with forearm forward, KneeFlex ~90° with shin back, Fist, SpineTwist). Only translations and bone lengths change. A wide-shoulder, short-limb, robot, or armor mesh is the **Stocky** row — copy those proportions, not the elf’s centimeter endpoints. For missing physical digits, preserve the schema's semantic bones as documented unused bones; do not invent visible geometry or assign stray weights just to give them influence.
 
 Digitigrade legs or substantially different anatomy may require additional mechanism bones or a new compatibility profile. Do not force an anatomically incorrect human knee/ankle placement to keep numerical matrices identical. Preserve the core export mapping where it is valid, and explicitly record any incompatibility.
 
@@ -221,22 +228,25 @@ Inspect the live scene before making changes. Record mesh topology/counts, UVs, 
 
 Measure both sides and inspect front, side, and top views. Fit hips, spine, chest, neck/head, shoulders, elbows, wrists, knees, ankles, toe pivots, and every finger joint. Use the actual hand geometry rather than a projected silhouette alone.
 
-Keep deforming bone centerlines inside the corresponding mesh volume. Test heads, tails, and intermediate samples with geometric enclosure checks. Use multiple ray directions where scan topology or local normals are unreliable. Root, IK targets, and pole controls may lie outside the mesh because they are controls, not embedded anatomical bones.
+Keep deforming **joint pivots** inside the corresponding mesh volume. Enclosure is a **pre-bind** gate on bone **heads** (and the mid-shaft of UpperArm / Forearm / Thigh / Shin). Test: Hips, Spine, Chest, Neck, Head **head**, clavicle/shoulder, elbow, wrist, hip, knee, ankle, and finger **\*1** knuckles. Use multiple ray directions where scan topology or local normals are unreliable.
 
-Mirror only when the mesh is sufficiently symmetric. Adapt asymmetrical anatomy while preserving names and the transform contract. Check joint pivot locations visually; enclosure alone does not prove anatomical correctness.
+Do **not** treat distal **tails** as enclosure failures: Head crown, `*3` fingertips, and Toes tips sit on or just outside the surface by design. Thin or concave torsos can flag Neck/Chest centerline samples — confirm in a front/side screenshot; do not spend a bind cycle nudging every finger tip. Root, IK targets, and pole controls may lie outside the mesh because they are controls, not embedded anatomical bones.
+
+Mirror only when the mesh is sufficiently symmetric. Adapt asymmetrical anatomy while preserving names and the transform contract. Check joint pivot locations visually; enclosure alone does not prove anatomical correctness. Fit landmarks **before** heat. A heat failure on a proportionally scaled elf skeleton is almost always misplaced joints, not a reason to skip §2.
 
 ### 3. Construct and bind
 
-Build the exact core hierarchy from the schema and apply fitted rest transforms. Validate names and parents before weighting. Name the armature `RIG-<slug>` and the skinned mesh `GEO-<slug>` (see **Naming convention**). Save a per-character manifest containing rest matrices, inverse binds, module settings, source unit/axis conversions, and reference schema version.
+Build the exact core hierarchy from the schema and apply **this character's** fitted rest transforms (not the elf scaled to height). Validate names and parents before weighting. Name the armature `RIG-<slug>` and the skinned mesh `GEO-<slug>` (see **Naming convention**). Save a per-character manifest containing rest matrices, inverse binds, module settings, source unit/axis conversions, and reference schema version.
 
-Bind only after mesh and armature object transforms are applied (rotation 0, scale 1). Heat on unapplied scale is a common warp source and a common `Bone Heat Weighting: failed to find solution` cause. `use_deform` is on for the 52 export bones only. `CTRL_*` / `WGT_*` / `Root` do not get vertex groups.
+Bind only after mesh and armature object transforms are applied (rotation 0, scale 1) **and** after §2 landmarks are in this mesh. Heat on unapplied scale, or on a scaled-elf skeleton whose elbows/knees missed the crease, is a common warp source and a common `Bone Heat Weighting: failed to find solution` cause. `use_deform` is on for the 52 export bones only. `CTRL_*` / `WGT_*` / `Root` do not get vertex groups. Use helper `heat_bind` / `refine_weights` on the fitted armature; do not reimplement them.
 
 **Heat first pass (Blender, this is possible).** Select the mesh, then the armature as active. `bpy.ops.object.parent_set(type="ARMATURE_AUTO")`. That is bone-heat. One Armature modifier: `object` = this armature, `use_vertex_groups=True`, `use_bone_envelopes=False`. Do not stack a second Armature modifier. Do not enable `use_deform_preserve_volume` (dual quaternion): Unity Humanoid plays **linear blend skinning**, so a Blender-only volume flag will not ship.
 
 For dense meshes (>~40k verts) or a heat failure, use a **temporary proxy**, never the render mesh: duplicate, merge-by-distance only true coincident splits, `DECIMATE` toward ~25k, heat on the proxy, then `bpy.ops.object.data_transfer(data_type="VGROUP_WEIGHTS", vert_mapping="POLYINTERP_NEAREST", layers_select_src="ALL", layers_select_dst="NAME", mix_mode="REPLACE")` onto the original. Preserve thin digits on the proxy. Never weld the original UV seams or strip original custom normals as a generic rigging fix. Helpers: `Tools/Blender/biped_humanoid_v1/run.py` (`heat_bind`) and `repair_weights.py`.
 
-**Heat-failure ladder (stop at the first that weights every deform vert).** Do not research other solvers; these are in Blender or this repo.
+**Heat-failure ladder (stop at the first that weights every deform vert).** Do not research other solvers; these are in Blender or this repo. Do not start this ladder on a scaled-elf skeleton.
 
+0. Confirm §2: elbow, knee, wrist, hip, and knuckle **heads** sit in this mesh's creases. If they do not, refit — heat cannot invent a joint.
 1. Recalculate normals outside. Confirm scale 1. Retry `ARMATURE_AUTO`.
 2. Proxy path above. If heat still fails on the proxy, scale **mesh and armature together** ×10, heat, scale back to 1, apply, regenerate inverse binds.
 3. Separate by loose parts, heat each island, join (keep vertex groups).
@@ -306,7 +316,22 @@ Every intended skinned vertex weighted, sums = 1 within 1e-4, ≤4 deform influe
 
 #### 4d. Weight pose sheet (required before animation)
 
-Photograph, in solid view, rest plus: both elbows 90°, both knees 90°, both arms raised, a crotch split, a fist, head turn. Reject spikes, pancakes, opposite-limb dragging, fingers glued together, or a 1-loop candy ring. If a gate fails, repair §4b for that joint — do not start Idle/Run/Jump/Slash on a collapsing bind. Animation will magnify it.
+Match `examples.png` (Character Forge / Humanoid v1). That sheet is the **skeleton diagnostic**, not the gameplay clips. Views: **Front Y/Z** and **Side X/Z** (our +X character-forward, +Z up). Units on the sheet are centimeters. Use the Stocky row when this mesh is wide/short-limbed; use Standard when it is elf-like. Pose *angles* stay the same either way.
+
+Render **one montage**: bone overlay first (cheap joint check), then solid mesh. Do not dump ten separate beauty stills.
+
+| Pose on the sheet | What it must look like | Side X/Z is the tell | Mesh fail |
+|---|---|---|---|
+| **Reference** | Shallow A-pose. Arms down-out, not T, not hanging Idle | Almost a straight stacked line; arms slightly in front of the torso | Rest mesh moved, joints outside the volume |
+| **ArmsRaised** | V, not a Y over the head. A little character-forward | Hands in front of the shoulder line, not behind the back | Armpit spike, chest collapsing onto the arm |
+| **ElbowFlex** | `Forearm` ~90°. Hands come inward in front view | Forearm aims **character-forward**, not across the belly or out to a T | Spike in the fold, pancake on the outside |
+| **KneeFlex** | `Shin` ~90°. Front view barely shows it — do not skip side | Shin goes **back**, foot under or behind the knee | Calf sucks into the thigh, or a hard ring |
+| **Fist** | Digits curled, wrists near neutral, thumbs oppose | Hands stay with the forearms; no broken-wrist flap | Neighbor fingers glued, candy ring at a knuckle |
+| **SpineTwist** | Chest yaws; not a 90° body-spin | One arm forward, one back — the wrap | Torso pancakes; clavicles drag the jaw |
+
+Still photograph a **crotch split** on the mesh (not on that sheet): both thighs abduct ~45° plus a 90° sit on one thigh. Head turn is covered by SpineTwist + a small Neck/Head offset.
+
+Reject spikes, pancakes, opposite-limb dragging, fingers glued together, or a 1-loop candy ring. If a gate fails, repair §4b for that joint — do not start Idle/Run/Jump/Slash on a collapsing bind. Animation will magnify it. Do not treat this montage as clip authoring.
 
 ### 5. Bake rig to mesh — preserve an animated asset
 
@@ -337,7 +362,7 @@ Keep rest skeleton and weights unchanged while authoring clips. See **Animation-
 
 #### Authoring contract (browser / game-efficient, AAA body mechanics)
 
-Goal: mocap-like weight and silhouette from a **small set of posed extremes**, not a key on every bone every frame. Interpolation carries the inbetweens. Dense 30-fps baking of every controller is a failure mode for this job.
+Goal: mocap-like weight and silhouette from a **small set of posed extremes**, not a key on every bone every frame. Interpolation carries the inbetweens. Dense 30-fps baking of every controller is a failure mode for this job. `examples.png` is the bind diagnostic (A-pose / 90° joints / twist), **not** a clip sheet — do not author Idle hang, Run, Jump, or Slash from those six sticks.
 
 **Keyframe budget (authored poses, not baked samples)**
 
@@ -352,6 +377,7 @@ Goal: mocap-like weight and silhouette from a **small set of posed extremes**, n
 **Shared body rules (all four clips)**
 
 - Calibration pose is the fitted shallow A-pose rest. Gameplay clips must **leave** that rest: upper arms near the ribs, elbows softly bent, hands close to the hips or on a real path. A T-pose, scarecrow, or wide A-pose is a failed clip even if nothing intersects.
+- **First-pass arm clearance (author this; do not discover it in a 30-minute overlap loop).** Character-forward is +X. Measure torso half-depth at the sternum (frontmost Chest verts). Idle hang: hands at the pockets with **hand X ≥ torso-front + 1–2 cm** (blocky / armored / robot / wide-limb meshes: **+3–5 cm**). Upper arms may graze the ribs — that is allowed light contact, not a clip to chase. Forearms and hands stay in front of the rib plane. Run uses the same hang plus **+3–6 cm** more forward on the hand path. Slash keeps Hand.R in front of the sternum from Commit through Recoil (see Slash path). If the mesh is bulky, start with the bulky offsets; do not author a slim-human path and then iterate collisions.
 - Keep deforming bone twists short. Use the smallest swing that aims local +Y along the limb. No 160°+ thigh/arm rolls (see knee-pole note).
 - Hips lead weight. Shoulders counter-rotate the ribcage. Head follows late and less than the chest.
 - Knees and elbows bend in their anatomical plane. Knees aim roughly forward; they do not collapse inward through the opposite thigh or hyperextend into a lock unless the pose is a brief push-off.
@@ -412,8 +438,8 @@ Reference: athletic **jog-run**. Not a walk, not a military high-knee march, not
 - Stance is longer than Idle, but on the passing/Down pose the knees stay under the hips — no splits.
 
 **Arms**
-- Pump **close to the ribs**. Elbows stay near 70–100°.
-- Hands travel a short fore-aft arc **beside** the torso: back extreme beside/behind the greater trochanter; front extreme beside the lower ribs / navel. Hands never rise above the lower chest, never park in front of the sternum, and never stick out in a T.
+- Pump **close to the ribs**. Elbows stay near 70–100°. Elbow poles sit at **rib height, slightly behind the elbow** — not out, not up. High/out poles are the usual first-pass fail (elbows ride beside the chest).
+- Hands travel a short fore-aft arc **beside** the torso, **3–6 cm character-forward of Idle hang X**: back extreme beside/behind the greater trochanter at hip height; front extreme beside the lower ribs / navel. Hands never rise above the lower chest, never park in front of the sternum, and never stick out in a T.
 - **Opposition is mandatory on every frame you can photograph:** left leg forward ↔ right arm forward (and the reverse). Hips yaw toward the back (pushing) leg; shoulders yaw the other way.
 - Fingers loose or lightly closed.
 
@@ -514,8 +540,9 @@ Reference: one committed right-handed cut with a short arming sword / long knife
 - The cutting plane is **in front of the sternum**, not through the belly. Treat Hand.R as the hilt: a ~70 cm blade continues along the hand heading, so the hand path must keep that blade off the head and torso.
 - **Wind-up:** Hand.R is at about **ear height**, but a **head-width to the character’s right** and slightly rear of the shoulder. From the front you see sky between the fist and the skull. The hand does **not** occupy the ear, horn, or back of the head. Elbow.R is below the hand, outside the ribcage, **not** flared to a T. Weight ~65–75% on the right-back foot.
 - **Hips/Chest coil, they do not spin 90°.** From above, the chest yaws so the right shoulder goes back on the load (~20–40°) and comes forward on the cut, passing through facing-front. The contact pose is **not** a full profile. The arm does not do all of the travel; the torso does not do all of it either.
-- **Slash:** Hand.R travels a convex arc across the **front** of the chest (high-right → center-front at sternum height → low/mid-left-front). Fast 2–4 frames, long travel.
-- **Follow-through:** Hand.R finishes left-front at about hip-to-waist height, still off the body. Weight can pass onto the left foot. Spine and head overshoot a little. Then recover to the Idle stand.
+- **Slash:** Hand.R travels a convex arc across the **front** of the chest (high-right → center-front at sternum height → low/mid-left-front). Fast 2–4 frames, long travel. From **Commit through Recoil**, Hand.R **X stays in front of the sternum** (bulky meshes: a head-width forward). Elbow.R already has a path **forward of** the ribs at Commit — do not wait until collision review to pull it forward.
+- **Follow-through:** Hand.R finishes left-front at about hip-to-waist height, still off the body. Weight can pass onto the left foot. Spine and head overshoot a little.
+- **Recoil / spline corner-cut:** Bezier interpolation from left-front follow-through to right-hip Idle **cuts through the chest** if Hand.R X drops to ~0 at sternum height while Y crosses midline. Recoil **lowers** the hand in front (X still forward, Y still left-of-center); only the last 4–5 frames pull back to Idle hang. If follow-through still clips, add **one** forward-left breakdown — do not re-author the clip or abduct the shoulder.
 - Left arm counters on the opposite side of the torso, close, never through the stomach and never stuck out.
 
 **Sparse poses (6–7 keys, spread on the timeline)**
@@ -536,6 +563,7 @@ Ease into the wind-up and out of the follow-through. Do **not** ease the cut its
 - Put Hand.R on the ear, through the head, or behind the skull. “High-right” means high and to the right, with a gap.
 - Spin the whole body to profile and hold the arm out. That is not a cut in front of the chest.
 - Animate a straight line from high-right through the abdomen to low-left.
+- Let spline recovery from left-front follow-through to Idle hang cut through the sternum (Hand.R X ≈ 0 at chest height while Y crosses midline).
 - Keep Chest/Hips facing camera the whole time and swing only the arm.
 - Abduct the right shoulder to “make clearance.” Move the arc forward and add torso rotation instead.
 - Invent a sword mesh.
@@ -554,11 +582,16 @@ Ease into the wind-up and out of the follow-through. Do **not** ease the cut its
 
 Animated appendages must stay outside this character's own mesh. Do not accept a clip in which an arm, elbow, hand, weapon path, leg, knee, or foot passes through the torso, pelvis, head, or the opposite limb.
 
-Do **not** solve that by sticking the arms out. A T-pose, scarecrow, or wide A-pose Idle/Run/Jump is a failure even if nothing intersects. Keep a normal character silhouette: upper arms near the ribs, elbows slightly bent, hands close to the hips or on a real run/slash path. A few centimeters of clearance is enough.
+Do **not** solve that by sticking the arms out. A T-pose, scarecrow, or wide A-pose Idle/Run/Jump is a failure even if nothing intersects. Keep a normal character silhouette: upper arms near the ribs, elbows slightly bent, hands close to the hips or on a real run/slash path. A few centimeters of clearance is enough. Author the §5b first-pass forward offsets **before** any overlap test.
 
-- Evaluate the **deformed mesh**, not only bone dots. Scrub every frame in solid/material view.
-- Light contact (a hand brushing a hip on Idle, feet on the ground) is allowed. Volume penetration is not.
-- **`SwordSlash` failure to prevent:** a straight cut that drives `UpperArm.R` / `Forearm.R` / `Hand.R` through the belly or chest, or a wind-up that puts Hand.R through the skull/ear. Keep the elbow outside the ribcage **without** flaring it wide. Rotate `Chest` and `Hips` with the swing so the arm can stay in front on a compact arc (~20–40° yaw, not a 90° spin). Place the slash plane in front of the body; never through it. The left arm counterbalances outside the torso, not through it, and not stuck out to the side.
+**Cheap check (do this; do not half-frame BVH-overlap every clip).** A prior run spent ~30 minutes on 0.5-frame triangle overlaps that flagged Idle hang upper-arm:torso (~18–27 pairs) on a bulky mesh — that is allowed light contact, not a fail.
+
+1. Evaluate the **deformed mesh** at **authored extreme frames only** (the keys in the §5b tables). One front + one side per extreme if needed; prefer the contact sheets.
+2. A fail is a **hand / forearm / shin / foot center** inside the torso, pelvis, or head, or a limb passing through the opposite limb's volume. Upper-arm:torso triangle overlap on Idle hang, or a hand brushing a hip, is **not** a fail. Feet on the ground are not a fail.
+3. After converting stepped keys to spline, check **midpoints between slash keys** (and Run pass/backswing) — Bezier cuts corners. Do not sample every half-frame, and do not write `collision-pairs.json` into chat.
+4. If an extreme fails: move **that** target 3–6 cm character-forward (bulky: 6–10 cm) and/or add torso yaw. **One retry.** Then export-path review. Do not iterate poles by millimeters.
+
+- **`SwordSlash` failure to prevent:** a straight cut that drives `UpperArm.R` / `Forearm.R` / `Hand.R` through the belly or chest; a wind-up that puts Hand.R through the skull/ear; **or spline recovery from left-front to Idle hang through the sternum**. Keep the elbow outside the ribcage **without** flaring it wide. Rotate `Chest` and `Hips` with the swing so the arm can stay in front on a compact arc (~20–40° yaw, not a 90° spin). Place the slash plane in front of the body; never through it. The left arm counterbalances outside the torso, not through it, and not stuck out to the side.
 - **`Run` / `Jump`:** knees and feet must not enter the opposite thigh or the pelvis; arms must not clip the torso on the pass, and must not be held away from the body to avoid that pass. Clearing Run by flaring the arms, or by turning it into a high-knee march / chair-sit skip, is still a failed clip — fix the path using the §5b Run recipe. Clearing Jump by skipping the crouch/land or hanging with locked legs is also a failed clip — fix it using the §5b Jump recipe.
 - If a pose only works by clipping, change the arc, timing, or torso rotation — move the path a little **forward**, do not abduct the shoulders. Do not ship the penetrating pose.
 
@@ -571,7 +604,7 @@ Run the following checks before calling the rig complete:
 - Schema: exact core names and parents; no duplicate suffixes; expected deform flags.
 - Transforms: finite/invertible rest and bind matrices, consistent handedness, no accidental negative/nonuniform scale or sheared bone bases.
 - Rest-pose invariance: skinned rest positions match the unbound mesh.
-- Placement: all sampled deform centerline points inside their intended body regions; no zero-length bones.
+- Placement: joint **pivots** (bone heads of the long bones and \*1 knuckles) inside their intended body regions; no zero-length bones. Distal tails (Head crown, \*3 tips, Toes) on/just outside the surface are expected.
 - Skinning: no unweighted vertices, normalized sums, four-influence budget, valid bone references, matching seam weights, no opposite-limb or remote leak. Pose gates in §4d hold (90° elbow/knee, arm raise, crotch split, fist) without spikes or pancakes. Heat-only binds that skip §4 are not done.
 - Geometry: inspect physical connectivity and intended separate parts without changing topology solely to satisfy a count.
 - Poses: elbows and knees at representative bends; shoulders raised/lowered; hip stride/crouch; torso twist; head turn; wrist bends; individual digits and combined finger curls; thumbs; ankle/toe bends.
@@ -602,7 +635,7 @@ Preserve Unity `.meta` GUIDs when replacing project files. Verify Humanoid mappi
 
 ## Reuse prompt
 
-"Read the Modular Biped Humanoid Rig Standard v1 and its FBX companion; parse the reference JSON in code without dumping its matrices into chat. Rig this character using biped_humanoid_v1: identical core names and hierarchy, calibrated matrix transforms, modular anatomy fitting, full fingers, verified skin weights, then bind with Blender heat as a first pass and finish weights per §4 (isolate opposite-limb leak, 3–5-loop joint bands posed at 90°, four influences, no twist bones / Preserve Volume / Corrective Smooth), then author Idle first and Run, Jump, and SwordSlash from the sparse pose recipes so each of those three **starts and ends on the Idle stand** (not mid-stride / mid-crouch / mid-slash; Unity blends Idle ↔ every clip), not per-frame noise; spread keys across each clip’s required length — Idle 60f/2.0s, Run 24–30f/0.80–1.00s, Jump 30–45f/1.00–1.50s, Slash 24–36f/0.80–1.20s — never pack N poses onto N frames, passing the §5b silhouette gates (Idle at ease, Run forward-lean jog, Jump crouch/hang/land, Slash front-of-chest cut off the skull), with no limb-through-body mesh penetration and no T-pose/scarecrow clearance cheats, and a baked skinned export with those clips. Preserve the working Blender rig and report validation results."
+"Read the Modular Biped Humanoid Rig Standard v1 and its FBX companion; parse the reference JSON in code without dumping its matrices into chat. Rig this character using biped_humanoid_v1: identical core names and hierarchy, calibrated matrix transforms, modular anatomy fitting (**this mesh's landmarks before heat**; helper proportional bind is a seed only), full fingers, verified skin weights, then bind with Blender heat as a first pass and finish weights per §4 (isolate opposite-limb leak, 3–5-loop joint bands posed at 90°, four influences, no twist bones / Preserve Volume / Corrective Smooth), then author Idle first and Run, Jump, and SwordSlash from the sparse pose recipes with **first-pass forward arm offsets** so each of those three **starts and ends on the Idle stand** (not mid-stride / mid-crouch / mid-slash; Unity blends Idle ↔ every clip), not per-frame noise; spread keys across each clip’s required length — Idle 60f/2.0s, Run 24–30f/0.80–1.00s, Jump 30–45f/1.00–1.50s, Slash 24–36f/0.80–1.20s — never pack N poses onto N frames, passing the §5b silhouette gates (Idle at ease, Run forward-lean jog, Jump crouch/hang/land, Slash front-of-chest cut off the skull, slash recovery stays in front so spline does not cut the sternum), with no limb-through-body mesh penetration (check authored extremes, not half-frame overlap dumps; hanging upper-arm graze is not a fail) and no T-pose/scarecrow clearance cheats, and a baked skinned export with those clips. Import helper functions; do not write a per-job IK/collision pipeline. Preserve the working Blender rig and report validation results."
 
 ## Animation-bake failure to prevent: reversed knee poles
 
@@ -619,7 +652,7 @@ Validate actual deformed geometry in neutral animation poses, scan rotations acr
 
 ## Clip review (keep this compact)
 
-Review in playback and a short contact sheet of the **authored extremes**, not dozens of near-identical full-resolution frames. Include a **side view** of Run and Jump (front hides chair-sit and shallow crouch) and **front + side** of Slash (front shows the chest arc; side shows the plane is in front of the sternum). For each clip confirm:
+Review in playback and the **five contact sheets** named under Efficient execution, not dozens of near-identical full-resolution frames and not per-frame collision stills. Include a **side view** of Run and Jump (front hides chair-sit and shallow crouch) and **front + side** of Slash (front shows the chest arc; side shows the plane is in front of the sternum). For each clip confirm:
 
 1. Silhouette is a person, not a scarecrow / A-pose leftover.
 2. Weight: Idle 2.0s breath + weight shift (frame 1 vs 21 must differ); Run absorb + push-off behind the hip + flight, 0.80–1.00s, forward lean; Jump photographed crouch, bent-knee hang, land squash; Slash slow load with a gap from the skull and a fast front-of-chest cut (not a 90° spin).
