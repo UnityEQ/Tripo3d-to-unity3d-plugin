@@ -512,10 +512,6 @@ namespace Tripo3D.Editor
             _outputField.RegisterValueChangedCallback(evt => TripoSettings.OutputFolder = evt.newValue);
             card.Add(_outputField);
 
-            var hint = new Label("Tripo3D API key is stored in EditorPrefs and UserSettings/Tripo3D.settings.json (gitignored). It is never written into Assets.");
-            hint.AddToClassList("hint");
-            card.Add(hint);
-
             _aiProviderFieldSettings = MakeProviderField();
             card.Add(_aiProviderFieldSettings);
 
@@ -564,14 +560,32 @@ namespace Tripo3D.Editor
             _apiKeyField = new TextField("Tripo3D API Key") { isPasswordField = true, value = TripoSettings.ApiKey };
             card.Add(_apiKeyField);
 
+            var keyPath = Path.GetFullPath(TripoPaths.SettingsFile);
+            var keyHint = new Label("Save writes the key to this machine only (never under Assets/, gitignored).");
+            keyHint.AddToClassList("hint");
+            card.Add(keyHint);
+            var prefsHint = new Label("Unity EditorPrefs key: Tripo3D.ApiKey");
+            prefsHint.AddToClassList("hint");
+            card.Add(prefsHint);
+            var pathField = new TextField("Settings file") { value = keyPath, isReadOnly = true };
+            card.Add(pathField);
+            var envHint = new Label("You can also set the TRIPO_API_KEY environment variable.");
+            envHint.AddToClassList("hint");
+            card.Add(envHint);
+
+            var keySaved = new Label();
+            keySaved.AddToClassList("hint");
+
             var save = new Button(() =>
             {
                 TripoSettings.ApiKey = (_apiKeyField.value ?? string.Empty).Trim();
                 TripoSettings.SaveApiKeyToDisk();
+                keySaved.text = "Saved to EditorPrefs (Tripo3D.ApiKey) and " + keyPath;
                 RefreshBalance();
             }) { text = "Save Tripo3D API Key" };
             save.AddToClassList("generate-btn");
             card.Add(save);
+            card.Add(keySaved);
 
             _blenderPathField = new TextField("Blender.exe") { value = string.IsNullOrEmpty(TripoSettings.BlenderPath) ? TripoBlenderRunner.FindBlender() : TripoSettings.BlenderPath };
             _blenderPathField.RegisterValueChangedCallback(evt => TripoSettings.BlenderPath = evt.newValue);
