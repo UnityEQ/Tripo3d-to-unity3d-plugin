@@ -44,9 +44,26 @@ Credits show in the Studio header. Refresh them after saving a key.
 | --- | --- |
 | **Tripo 3D → Studio** (`Ctrl+Shift+T`) | Main Studio window |
 | **Tripo 3D → Setup and Install Packages** | Detect / install Unity packages and local tools |
-| **Window → Tripo 3D → …** | Same two commands |
+| **Tripo 3D → Setup Gnome Recording Studio** | Build the enclosed Art Deco hall, lights, volume, and `GnomeStudioDirector` around the character in the open scene |
+| **Tripo 3D → Refresh Gnome Studio Look** | Rebuild set, camera orbit, and post without deleting the studio root |
+| **Window → Tripo 3D → …** | Same Studio / Setup commands |
 
 Studio also has **Setup** in the header and **Setup and install packages** on the Settings tab. On first load, if glTFast or URP is missing, Unity offers to install them.
+
+## Gnome Recording Studio
+
+Scene: `Assets/Scenes/GnomeStudio.unity`. Select **Gnome Studio** in the Hierarchy — camera, look-at, lighting, and cinematic all live on **Gnome Studio Director** (not on Main Camera). There is one Main Camera; Front / Right / Back / Left are orbit spots, not extra cameras.
+
+| Control | What it does |
+| --- | --- |
+| **Orbit** | 0–360° horizontal spin around the character (0 is Front) |
+| **Distance** | 1.87–6.3 (stays inside the walls) |
+| **Height (Y)** | Camera world Y (0.05–4.5) |
+| **Daylight** | 0 night / 1 day — directional (environmental) light, ambient, and post |
+| **Play orbit** | One loop: orbit, distance, height, and daylight slide together (editor and Play Mode). Starts at `0 / 1.87 / 0.05 / 0`. Default speed 46 |
+| **Stop** | Freeze the loop and reset those four sliders to `0 / 1.87 / 0.05 / 0` |
+
+The hall is enclosed (four walls + ceiling): marble floor, Roman corner columns, Art Deco wallpaper, black marble wainscot, gold trim. **Orbit on Play** starts the same loop when you enter Play Mode.
 
 ## Studio tabs
 
@@ -192,7 +209,10 @@ Rig jobs and prompts: `Temp/tripo-ai-jobs/` (`LATEST.json` is the newest pending
 ## Project layout
 
 ```text
-Assets/Tripo3D/Editor/     Unity editor plugin (Studio window, API, jobs, AI dispatch)
+Assets/Tripo3D/            Runtime studio scripts (GnomeStudioDirector, look-at, cinematic)
+Assets/Tripo3D/Editor/     Unity editor plugin (Studio window, API, jobs, AI dispatch, gnome set)
+Assets/Scenes/GnomeStudio.unity    Recording hall scene
+Assets/Settings/           Studio volume, materials, marble/deco textures, cinematic Timeline
 Assets/TripoModels/        Imported GLB / FBX / textures / .blend
 Tools/Blender/biped_humanoid_v1/   Headless Blender rig + agent
 UserSettings/              Local API key and session (not for Assets)

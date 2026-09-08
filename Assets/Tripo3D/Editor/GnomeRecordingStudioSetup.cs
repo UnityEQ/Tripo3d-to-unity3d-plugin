@@ -18,6 +18,15 @@ namespace Tripo3D.Editor
         const string VolumeAsset = "Assets/Settings/GnomeRecordingVolume.asset";
         const string FloorMat = "Assets/Settings/StudioFloor.mat";
         const string WallMat = "Assets/Settings/StudioWall.mat";
+        const string BlackMarbleMat = "Assets/Settings/StudioMarbleBlack.mat";
+        const string GoldMat = "Assets/Settings/StudioGold.mat";
+        const string CeilingMat = "Assets/Settings/StudioCeiling.mat";
+        const string ColumnMat = "Assets/Settings/StudioColumn.mat";
+        const string FloorTex = "Assets/Settings/MarbleFloor.jpg";
+        const string BlackTex = "Assets/Settings/MarbleBlack.jpg";
+        const string WallTex = "Assets/Settings/DecoWall.jpg";
+        const string GoldTex = "Assets/Settings/DecoGold.jpg";
+        const string CeilingTex = "Assets/Settings/DecoCeiling.jpg";
         const string TimelinePath = "Assets/Settings/GnomeStudioCinematic.playable";
         const string FollowAnimPath = "Assets/Settings/CameraFollowLook.anim";
         const uint LayerDefault = 1u;
@@ -58,7 +67,7 @@ namespace Tripo3D.Editor
             EditorSceneManager.MarkSceneDirty(scene);
             if (!string.IsNullOrEmpty(scene.path))
                 EditorSceneManager.SaveScene(scene);
-            Debug.Log("[Gnome Studio] Cinematic cameras, CameraFollow, and short-film post are ready.");
+            Debug.Log("[Gnome Studio] Main Camera orbit spots, CameraFollow, and short-film post are ready.");
         }
 
         static void TrySetup()
@@ -148,30 +157,7 @@ namespace Tripo3D.Editor
 
             var camera = Camera.main;
             if (camera != null)
-            {
-                camera.allowHDR = true;
-                camera.allowMSAA = true;
-                camera.fieldOfView = 38f;
-                camera.nearClipPlane = 0.05f;
-                var data = camera.GetUniversalAdditionalCameraData();
-                if (data != null)
-                {
-                    data.renderPostProcessing = true;
-                    data.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
-                    data.antialiasingQuality = AntialiasingQuality.High;
-                    data.stopNaN = true;
-                    data.dithering = true;
-                    data.renderShadows = true;
-                    data.volumeLayerMask = ~0;
-                }
-
-                var look = camera.GetComponent<LookAtTarget>();
-                if (look == null)
-                    look = camera.gameObject.AddComponent<LookAtTarget>();
-                look.target = gnome.transform;
-                look.useRendererBounds = true;
-                look.worldOffset = new Vector3(0f, 0.7f, 0f);
-            }
+                DressCamera(camera, 32f);
 
             EnsureDirector(gnome);
 
@@ -184,15 +170,10 @@ namespace Tripo3D.Editor
 
         static void EnsureLookAt()
         {
-            var gnome = FindGnome();
-            var camera = Camera.main;
-            if (gnome == null || camera == null)
-                return;
-            var look = camera.GetComponent<LookAtTarget>();
-            if (look == null)
-                look = camera.gameObject.AddComponent<LookAtTarget>();
-            if (look.target == null)
-                look.target = gnome.transform;
+            var studio = GameObject.Find(StudioName);
+            var director = studio != null ? studio.GetComponent<GnomeStudioDirector>() : null;
+            if (director != null)
+                director.Apply();
         }
 
         static void EnsureCharacterOnlyFill(GameObject gnome)
@@ -291,20 +272,77 @@ namespace Tripo3D.Editor
             var origin = gnome.transform.position;
             var bounds = CharacterBounds(gnome);
             var floorY = bounds.min.y - 0.01f;
-            EnsureMaterial(FloorMat, new Color(0.16f, 0.14f, 0.12f), 0.08f, 0.38f);
-            EnsureMaterial(WallMat, new Color(0.78f, 0.74f, 0.68f), 0.02f, 0.22f);
-            var floorMat = AssetDatabase.LoadAssetAtPath<Material>(FloorMat);
-            var wallMat = AssetDatabase.LoadAssetAtPath<Material>(WallMat);
+            const float half = 6.5f;
+            const float hallH = 5.55f;
+            const float thick = 0.2f;
+            var span = half * 2f;
+            var wallY = floorY + hallH * 0.5f;
+            var goldColor = new Color(1f, 0.82f, 0.48f);
 
-            var floor = Primitive(studio.transform, "Floor", PrimitiveType.Plane, new Vector3(origin.x, floorY, origin.z), Vector3.zero, new Vector3(1.5f, 1f, 1.5f), floorMat);
+            ImportRepeatTexture(FloorTex);
+            ImportRepeatTexture(BlackTex);
+            ImportRepeatTexture(WallTex);
+            ImportRepeatTexture(GoldTex);
+            ImportRepeatTexture(CeilingTex);
+
+            var floorMat = EnsureLit(FloorMat, Color.white, 0.04f, 0.92f, FloorTex, new Vector2(6f, 6f));
+            var wallMat = EnsureLit(WallMat, Color.white, 0.06f, 0.32f, WallTex, new Vector2(3.2f, 2.2f));
+            var blackMat = EnsureLit(BlackMarbleMat, Color.white, 0.05f, 0.88f, BlackTex, new Vector2(2.4f, 1.4f));
+            var goldMat = EnsureLit(GoldMat, goldColor, 1f, 0.84f, GoldTex, new Vector2(1f, 1f));
+            var ceilingMat = EnsureLit(CeilingMat, Color.white, 0.05f, 0.38f, CeilingTex, new Vector2(4f, 4f));
+            var columnMat = EnsureLit(ColumnMat, Color.white, 0.04f, 0.86f, FloorTex, new Vector2(1.2f, 3.4f));
+
+            var floor = Primitive(studio.transform, "Floor", PrimitiveType.Plane,
+                new Vector3(origin.x, floorY, origin.z), Vector3.zero, new Vector3(1.4f, 1f, 1.4f), floorMat);
             floor.isStatic = true;
 
             Primitive(studio.transform, "Wall Back", PrimitiveType.Cube,
-                new Vector3(origin.x, 3.15f, origin.z + 5.8f), Vector3.zero, new Vector3(14f, 6.4f, 0.16f), wallMat);
+                new Vector3(origin.x, wallY, origin.z + half), Vector3.zero, new Vector3(span + thick, hallH, thick), wallMat);
+            Primitive(studio.transform, "Wall Front", PrimitiveType.Cube,
+                new Vector3(origin.x, wallY, origin.z - half), Vector3.zero, new Vector3(span + thick, hallH, thick), wallMat);
             Primitive(studio.transform, "Wall Left", PrimitiveType.Cube,
-                new Vector3(origin.x - 5.8f, 3.15f, origin.z + 0.1f), new Vector3(0f, 90f, 0f), new Vector3(12.5f, 6.4f, 0.16f), wallMat);
+                new Vector3(origin.x - half, wallY, origin.z), Vector3.zero, new Vector3(thick, hallH, span), wallMat);
             Primitive(studio.transform, "Wall Right", PrimitiveType.Cube,
-                new Vector3(origin.x + 5.8f, 3.15f, origin.z + 0.1f), new Vector3(0f, 90f, 0f), new Vector3(12.5f, 6.4f, 0.16f), wallMat);
+                new Vector3(origin.x + half, wallY, origin.z), Vector3.zero, new Vector3(thick, hallH, span), wallMat);
+            Primitive(studio.transform, "Ceiling", PrimitiveType.Plane,
+                new Vector3(origin.x, floorY + hallH, origin.z), new Vector3(180f, 0f, 0f), new Vector3(1.4f, 1f, 1.4f), ceilingMat);
+
+            WallBand(studio.transform, "Wainscot", origin, floorY + 0.56f, 1.12f, half, 0.14f, 0.12f, blackMat);
+            WallBand(studio.transform, "Chair Rail", origin, floorY + 1.15f, 0.05f, half, 0.1f, 0.08f, goldMat);
+            WallBand(studio.transform, "Cornice", origin, floorY + hallH - 0.1f, 0.18f, half, 0.08f, 0.14f, goldMat);
+            WallBand(studio.transform, "Baseboard", origin, floorY + 0.05f, 0.1f, half, 0.12f, 0.1f, goldMat);
+
+            Primitive(studio.transform, "Medallion Ring", PrimitiveType.Cylinder,
+                new Vector3(origin.x, floorY + 0.012f, origin.z), Vector3.zero, new Vector3(2.4f, 0.01f, 2.4f), goldMat);
+            Primitive(studio.transform, "Medallion", PrimitiveType.Cylinder,
+                new Vector3(origin.x, floorY + 0.02f, origin.z), Vector3.zero, new Vector3(2.15f, 0.012f, 2.15f), blackMat);
+            Primitive(studio.transform, "Medallion Inner", PrimitiveType.Cylinder,
+                new Vector3(origin.x, floorY + 0.028f, origin.z), Vector3.zero, new Vector3(1.5f, 0.012f, 1.5f), floorMat);
+
+            var colInset = half - 1.35f;
+            var colXs = new[] { -colInset, colInset, -colInset, colInset };
+            var colZs = new[] { -colInset, -colInset, colInset, colInset };
+            for (var i = 0; i < colXs.Length; i++)
+            {
+                EnsureColumn(studio.transform, "Column " + (i + 1),
+                    origin.x + colXs[i], origin.z + colZs[i], floorY, hallH, columnMat, blackMat, goldMat);
+            }
+
+            for (var i = 5; i <= 8; i++)
+            {
+                var leftover = studio.transform.Find("Column " + i);
+                if (leftover != null)
+                    Object.DestroyImmediate(leftover.gameObject);
+            }
+
+            EnsureLight(studio.transform, "Deco Uplight 1", LightType.Point,
+                new Vector3(origin.x + colInset, floorY + hallH - 0.55f, origin.z + colInset), goldColor, 1.7f, 5.5f, LightShadows.None);
+            EnsureLight(studio.transform, "Deco Uplight 2", LightType.Point,
+                new Vector3(origin.x - colInset, floorY + hallH - 0.55f, origin.z + colInset), goldColor, 1.7f, 5.5f, LightShadows.None);
+            EnsureLight(studio.transform, "Deco Uplight 3", LightType.Point,
+                new Vector3(origin.x + colInset, floorY + hallH - 0.55f, origin.z - colInset), goldColor, 1.7f, 5.5f, LightShadows.None);
+            EnsureLight(studio.transform, "Deco Uplight 4", LightType.Point,
+                new Vector3(origin.x - colInset, floorY + hallH - 0.55f, origin.z - colInset), goldColor, 1.7f, 5.5f, LightShadows.None);
         }
 
         static void EnsureCinematic(GameObject gnome)
@@ -317,9 +355,7 @@ namespace Tripo3D.Editor
             var preview = studio.GetComponent<GnomeCinematicPreview>();
             if (preview == null)
                 preview = studio.AddComponent<GnomeCinematicPreview>();
-            preview.subject = gnome.transform;
             preview.playOnStart = true;
-            preview.loop = true;
 
             StripCinemachineBrains();
         }
@@ -335,9 +371,6 @@ namespace Tripo3D.Editor
                 cinematic = studio.AddComponent<GnomeCinematicPreview>();
             cinematic.enabled = true;
             cinematic.playOnStart = true;
-            cinematic.loop = true;
-            if (gnome != null)
-                cinematic.subject = gnome.transform;
 
             var follow = GameObject.Find("CameraFollow");
             if (follow == null)
@@ -362,41 +395,22 @@ namespace Tripo3D.Editor
             follow.transform.position = followPos;
             follow.transform.localScale = Vector3.one;
 
-            var rig = studio.transform.Find("Studio Cameras");
-            if (rig == null)
-            {
-                var rigGo = new GameObject("Studio Cameras");
-                rigGo.transform.SetParent(studio.transform, false);
-                rig = rigGo.transform;
-            }
-
+            StripExtraStudioCameras(studio);
             var height = Mathf.Max(0.8f, bounds.size.y);
-            var main = FindNamedCamera(null, "Main Camera");
+            var main = FindNamedCamera("Main Camera");
             if (main != null)
             {
                 DressCamera(main, 32f);
-                var mainLook = main.GetComponent<LookAtTarget>();
-                if (mainLook == null)
-                    mainLook = main.gameObject.AddComponent<LookAtTarget>();
-                mainLook.target = follow.transform;
-                mainLook.useRendererBounds = false;
-                mainLook.worldOffset = Vector3.zero;
-                mainLook.extraPitch = 3f;
-                main.transform.position = followPos + new Vector3(-1.35f, 0.22f, -2.40f);
-                mainLook.ReadOrbitFromPose();
-                mainLook.ApplyLook();
+                var look = main.GetComponent<LookAtTarget>();
+                if (look != null)
+                    Object.DestroyImmediate(look);
+                main.enabled = true;
+                if (!main.CompareTag("MainCamera"))
+                    main.tag = "MainCamera";
+                var listener = main.GetComponent<AudioListener>();
+                if (listener != null)
+                    listener.enabled = true;
             }
-
-            var list = new List<Camera>();
-            if (main != null)
-                list.Add(main);
-
-            list.Add(EnsureShot(rig, "Cam CloseUp", followPos + new Vector3(0.10f, 0.32f, -0.58f), 24f, 2f));
-            list.Add(EnsureShot(rig, "Cam ThreeQuarter", followPos + new Vector3(1.12f, 0.08f, -1.72f), 30f, 7f));
-            list.Add(EnsureShot(rig, "Cam Profile", followPos + new Vector3(1.92f, 0.06f, 0.12f), 32f, 5f));
-            list.Add(EnsureShot(rig, "Cam Low", followPos + new Vector3(0.52f, -0.48f, -1.78f), 34f, -7f));
-            list.Add(EnsureShot(rig, "Cam High", followPos + new Vector3(0.42f, 0.82f, -1.78f), 34f, 12f));
-            list.Add(EnsureShot(rig, "Cam Back", followPos + new Vector3(-1.18f, 0.1f, 1.82f), 32f, 6f));
 
             EnsureLight(studio.transform, "Soft Overhead", LightType.Point, bounds.center + new Vector3(0.1f, 2.4f, -0.35f),
                 new Color(1f, 0.96f, 0.9f), 1.55f, 6.5f, LightShadows.None);
@@ -404,53 +418,47 @@ namespace Tripo3D.Editor
             var director = studio.GetComponent<GnomeStudioDirector>();
             if (director == null)
                 director = studio.AddComponent<GnomeStudioDirector>();
+            director.studioCamera = main;
             director.follow = follow.transform;
             director.subject = gnome != null ? gnome.transform : follow.transform;
-            director.cameras = list;
-            director.lookAtFollow = true;
+            director.spot = GnomeStudioDirector.Spot.Front;
+            director.orbit = 0f;
+            director.distance = Mathf.Clamp(bounds.size.y * 1.55f, 1.6f, 3.5f);
+            director.height = followPos.y + 0.22f;
             director.rackFocus = true;
+            director.orbitSpeed = 46f;
+            var sun = GameObject.Find("Directional Light");
+            director.environmentLight = sun != null ? sun.GetComponent<Light>() : null;
+            director.daylight = 1f;
+            director.orbiting = false;
+            director.orbitOnPlay = true;
             director.Apply();
 
-            EnsureCinematicTimeline(studio, gnome, follow, height, list);
+            EnsureCinematicTimeline(studio, follow, height);
         }
 
-        static Camera EnsureShot(Transform parent, string name, Vector3 worldPos, float fov, float extraPitch)
+        static void StripExtraStudioCameras(GameObject studio)
         {
-            var existing = parent.Find(name);
-            GameObject go;
-            if (existing != null)
-                go = existing.gameObject;
-            else
-            {
-                go = new GameObject(name);
-                go.transform.SetParent(parent, true);
-                go.AddComponent<Camera>();
-                go.AddComponent<UniversalAdditionalCameraData>();
-                go.AddComponent<AudioListener>().enabled = false;
-            }
+            var rig = studio.transform.Find("Studio Cameras");
+            if (rig != null)
+                Object.DestroyImmediate(rig.gameObject);
 
-            go.transform.position = worldPos;
-            var cam = go.GetComponent<Camera>();
-            DressCamera(cam, fov);
-            cam.enabled = false;
-            if (cam.CompareTag("MainCamera"))
-                cam.tag = "Untagged";
-            var listener = cam.GetComponent<AudioListener>();
-            if (listener != null)
-                listener.enabled = false;
-            var look = cam.GetComponent<LookAtTarget>();
-            if (look == null)
-                look = cam.gameObject.AddComponent<LookAtTarget>();
-            look.target = GameObject.Find("CameraFollow") != null ? GameObject.Find("CameraFollow").transform : look.target;
-            look.useRendererBounds = false;
-            look.worldOffset = Vector3.zero;
-            look.extraPitch = extraPitch;
-            look.ReadOrbitFromPose();
-            look.ApplyLook();
-            return cam;
+            var all = Object.FindObjectsByType<Camera>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < all.Length; i++)
+            {
+                var cam = all[i];
+                if (cam == null || cam.targetTexture != null)
+                    continue;
+                if (cam.hideFlags != HideFlags.None || !cam.gameObject.scene.IsValid())
+                    continue;
+                if (cam.name == "Main Camera")
+                    continue;
+                if (cam.name.StartsWith("Cam ") || cam.name.StartsWith("GnomeCM_"))
+                    Object.DestroyImmediate(cam.gameObject);
+            }
         }
 
-        static void EnsureCinematicTimeline(GameObject studio, GameObject gnome, GameObject follow, float height, List<Camera> cameras)
+        static void EnsureCinematicTimeline(GameObject studio, GameObject follow, float height)
         {
             var cmRoot = studio.transform.Find("CM Shots");
             if (cmRoot != null)
@@ -472,7 +480,7 @@ namespace Tripo3D.Editor
                 AssetDatabase.CreateAsset(timeline, TimelinePath);
             }
 
-            BuildStudioCameraTimeline(timeline, anim);
+            BuildFollowTimeline(timeline, anim);
 
             var director = studio.GetComponent<PlayableDirector>();
             if (director == null)
@@ -482,29 +490,25 @@ namespace Tripo3D.Editor
             director.extrapolationMode = DirectorWrapMode.Loop;
             director.timeUpdateMode = DirectorUpdateMode.GameTime;
 
-            BindStudioCameraTimeline(director, timeline, animator, cameras);
+            foreach (var track in timeline.GetOutputTracks())
+            {
+                if (track is AnimationTrack)
+                    director.SetGenericBinding(track, animator);
+            }
+
             director.Stop();
             director.time = 0;
             var studioDirector = studio.GetComponent<GnomeStudioDirector>();
             if (studioDirector != null)
             {
-                studioDirector.cinematicActive = false;
-                studioDirector.ActivateCameraObjects();
-                var liveCam = FindNamedCamera(cameras, "Main Camera");
-                if (liveCam != null)
-                    studioDirector.SetLive(liveCam);
-                else
-                    studioDirector.Apply();
+                studioDirector.orbiting = false;
+                studioDirector.Apply();
             }
 
             var preview = studio.GetComponent<GnomeCinematicPreview>();
             if (preview == null)
                 preview = studio.AddComponent<GnomeCinematicPreview>();
-            preview.subject = gnome != null ? gnome.transform : follow.transform;
-            preview.follow = follow.transform;
-            preview.playable = director;
             preview.playOnStart = true;
-            preview.loop = true;
             EditorUtility.SetDirty(timeline);
             EditorUtility.SetDirty(director);
             AssetDatabase.SaveAssets();
@@ -544,20 +548,9 @@ namespace Tripo3D.Editor
             return key;
         }
 
-        static void BuildStudioCameraTimeline(TimelineAsset timeline, AnimationClip followAnim)
+        static void BuildFollowTimeline(TimelineAsset timeline, AnimationClip followAnim)
         {
             ClearTimeline(timeline);
-
-            var main = AddActivationTrack(timeline, "Main Camera");
-            AddActivationClip(main, "Wide", 0f, 3.4f);
-            AddActivationClip(main, "WideOut", 22.4f, 3.6f);
-            AddActivationClip(AddActivationTrack(timeline, "Cam ThreeQuarter"), "ThreeQuarter", 3.4f, 3.4f);
-            AddActivationClip(AddActivationTrack(timeline, "Cam CloseUp"), "CloseUp", 6.8f, 3.2f);
-            AddActivationClip(AddActivationTrack(timeline, "Cam Profile"), "Profile", 10f, 3.4f);
-            AddActivationClip(AddActivationTrack(timeline, "Cam Low"), "Low", 13.4f, 3.2f);
-            AddActivationClip(AddActivationTrack(timeline, "Cam High"), "High", 16.6f, 3.2f);
-            AddActivationClip(AddActivationTrack(timeline, "Cam Back"), "Back", 19.8f, 2.6f);
-
             var animTrack = timeline.CreateTrack<AnimationTrack>(null, "CameraFollow");
             var animClip = animTrack.CreateClip(followAnim);
             animClip.start = 0;
@@ -580,54 +573,8 @@ namespace Tripo3D.Editor
             }
         }
 
-        static ActivationTrack AddActivationTrack(TimelineAsset timeline, string name)
+        static Camera FindNamedCamera(string name)
         {
-            var track = timeline.CreateTrack<ActivationTrack>(null, name);
-            track.postPlaybackState = ActivationTrack.PostPlaybackState.Active;
-            return track;
-        }
-
-        static void AddActivationClip(ActivationTrack track, string name, float start, float duration)
-        {
-            var clip = track.CreateDefaultClip();
-            clip.start = start;
-            clip.duration = duration;
-            clip.displayName = name;
-        }
-
-        static void BindStudioCameraTimeline(
-            PlayableDirector director,
-            TimelineAsset timeline,
-            Animator followAnimator,
-            List<Camera> cameras)
-        {
-            foreach (var track in timeline.GetOutputTracks())
-            {
-                if (track is AnimationTrack)
-                {
-                    director.SetGenericBinding(track, followAnimator);
-                    continue;
-                }
-
-                if (!(track is ActivationTrack))
-                    continue;
-                var cam = FindNamedCamera(cameras, track.name);
-                director.SetGenericBinding(track, cam != null ? cam.gameObject : null);
-            }
-        }
-
-        static Camera FindNamedCamera(List<Camera> cameras, string name)
-        {
-            if (cameras != null)
-            {
-                for (var i = 0; i < cameras.Count; i++)
-                {
-                    var cam = cameras[i];
-                    if (cam != null && cam.name == name)
-                        return cam;
-                }
-            }
-
             var all = Object.FindObjectsByType<Camera>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             for (var i = 0; i < all.Length; i++)
             {
@@ -701,25 +648,126 @@ namespace Tripo3D.Editor
             var named = GameObject.Find("Gnome") ?? GameObject.Find("Character");
             if (named != null && named.GetComponent<GnomeStudioDirector>() == null)
                 return named;
-            var look = Camera.main != null ? Camera.main.GetComponent<LookAtTarget>() : null;
-            if (look != null && look.target != null
-                && look.target.GetComponent<CameraFollowMarker>() == null
-                && look.target.GetComponentInParent<GnomeStudioDirector>() == null)
-                return look.target.gameObject;
+            var studioGo = GameObject.Find(StudioName);
+            var director = studioGo != null ? studioGo.GetComponent<GnomeStudioDirector>() : null;
+            if (director != null && director.subject != null
+                && director.subject.GetComponent<GnomeStudioDirector>() == null
+                && director.subject.GetComponent<CameraFollowMarker>() == null)
+                return director.subject.gameObject;
             foreach (var root in SceneManager.GetActiveScene().GetRootGameObjects())
             {
                 if (root.name == StudioName || root.name == "CameraFollow" || root.GetComponent<Camera>() != null)
                     continue;
                 if (root.GetComponent<GnomeStudioDirector>() != null)
                     continue;
+                if (root.GetComponentInChildren<CameraFollowMarker>() != null)
+                    continue;
                 if (root.name.IndexOf("gnome", System.StringComparison.OrdinalIgnoreCase) >= 0)
                     return root;
-                if (root.GetComponentInChildren<Animator>() != null
-                    && root.GetComponentInChildren<CameraFollowMarker>() == null)
+                if (root.GetComponent<Light>() != null || root.GetComponent<Volume>() != null)
+                    continue;
+                if (root.GetComponentInChildren<SkinnedMeshRenderer>() != null
+                    || root.GetComponentInChildren<MeshRenderer>() != null
+                    || root.GetComponentInChildren<Animator>() != null)
                     return root;
             }
 
             return null;
+        }
+
+        static void ImportRepeatTexture(string path)
+        {
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+            var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer == null)
+                return;
+            importer.sRGBTexture = true;
+            importer.wrapMode = TextureWrapMode.Repeat;
+            importer.filterMode = FilterMode.Trilinear;
+            importer.anisoLevel = 8;
+            importer.mipmapEnabled = true;
+            importer.maxTextureSize = 2048;
+            importer.textureCompression = TextureImporterCompression.CompressedHQ;
+            importer.SaveAndReimport();
+        }
+
+        static Material EnsureLit(string path, Color color, float metallic, float smoothness, string texturePath, Vector2 tiling)
+        {
+            var mat = EnsureMaterial(path, color, metallic, smoothness);
+            if (!string.IsNullOrEmpty(texturePath))
+            {
+                var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+                if (tex != null)
+                {
+                    mat.SetTexture("_BaseMap", tex);
+                    mat.SetTexture("_MainTex", tex);
+                }
+            }
+
+            mat.SetTextureScale("_BaseMap", tiling);
+            mat.SetTextureScale("_MainTex", tiling);
+            EditorUtility.SetDirty(mat);
+            return mat;
+        }
+
+        static void WallBand(Transform parent, string prefix, Vector3 origin, float y, float height, float half, float inset, float thick, Material mat)
+        {
+            var span = half * 2f - inset * 2f;
+            var depth = half - inset;
+            Primitive(parent, prefix + " Back", PrimitiveType.Cube,
+                new Vector3(origin.x, y, origin.z + depth), Vector3.zero, new Vector3(span, height, thick), mat);
+            Primitive(parent, prefix + " Front", PrimitiveType.Cube,
+                new Vector3(origin.x, y, origin.z - depth), Vector3.zero, new Vector3(span, height, thick), mat);
+            Primitive(parent, prefix + " Left", PrimitiveType.Cube,
+                new Vector3(origin.x - depth, y, origin.z), Vector3.zero, new Vector3(thick, height, span), mat);
+            Primitive(parent, prefix + " Right", PrimitiveType.Cube,
+                new Vector3(origin.x + depth, y, origin.z), Vector3.zero, new Vector3(thick, height, span), mat);
+        }
+
+        static void EnsureColumn(Transform parent, string name, float x, float z, float floorY, float hallH, Material marble, Material dark, Material gold)
+        {
+            var existing = parent.Find(name);
+            GameObject root;
+            if (existing != null)
+                root = existing.gameObject;
+            else
+            {
+                root = new GameObject(name);
+                root.transform.SetParent(parent, false);
+            }
+
+            root.transform.position = new Vector3(x, floorY, z);
+            root.transform.rotation = Quaternion.identity;
+            var shaftH = hallH - 0.62f;
+            ChildPrimitive(root.transform, "Plinth", PrimitiveType.Cube, new Vector3(0f, 0.09f, 0f), Vector3.zero, new Vector3(0.56f, 0.18f, 0.56f), dark);
+            ChildPrimitive(root.transform, "Base", PrimitiveType.Cylinder, new Vector3(0f, 0.22f, 0f), Vector3.zero, new Vector3(0.48f, 0.07f, 0.48f), marble);
+            ChildPrimitive(root.transform, "Shaft", PrimitiveType.Cylinder, new Vector3(0f, 0.29f + shaftH * 0.5f, 0f), Vector3.zero, new Vector3(0.34f, shaftH * 0.5f, 0.34f), marble);
+            ChildPrimitive(root.transform, "Neck", PrimitiveType.Cylinder, new Vector3(0f, 0.29f + shaftH + 0.04f, 0f), Vector3.zero, new Vector3(0.38f, 0.04f, 0.38f), gold);
+            ChildPrimitive(root.transform, "Capital", PrimitiveType.Cube, new Vector3(0f, 0.29f + shaftH + 0.14f, 0f), Vector3.zero, new Vector3(0.6f, 0.12f, 0.6f), marble);
+            ChildPrimitive(root.transform, "Abacus", PrimitiveType.Cube, new Vector3(0f, 0.29f + shaftH + 0.24f, 0f), Vector3.zero, new Vector3(0.7f, 0.08f, 0.7f), gold);
+        }
+
+        static GameObject ChildPrimitive(Transform parent, string name, PrimitiveType type, Vector3 localPos, Vector3 localEuler, Vector3 localScale, Material mat)
+        {
+            var existing = parent.Find(name);
+            GameObject go;
+            if (existing != null)
+                go = existing.gameObject;
+            else
+            {
+                go = GameObject.CreatePrimitive(type);
+                go.name = name;
+                go.transform.SetParent(parent, false);
+            }
+
+            go.transform.localPosition = localPos;
+            go.transform.localRotation = Quaternion.Euler(localEuler);
+            go.transform.localScale = localScale;
+            var renderer = go.GetComponent<Renderer>();
+            if (renderer != null && mat != null)
+                renderer.sharedMaterial = mat;
+            go.isStatic = true;
+            return go;
         }
 
         static GameObject Primitive(Transform parent, string name, PrimitiveType type, Vector3 pos, Vector3 euler, Vector3 scale, Material mat)

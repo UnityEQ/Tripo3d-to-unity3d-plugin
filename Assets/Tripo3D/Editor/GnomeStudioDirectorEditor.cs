@@ -6,118 +6,109 @@ namespace Tripo3D.Editor
     [CustomEditor(typeof(GnomeStudioDirector))]
     sealed class GnomeStudioDirectorEditor : UnityEditor.Editor
     {
+        static readonly GnomeStudioDirector.Spot[] Spots =
+        {
+            GnomeStudioDirector.Spot.Front,
+            GnomeStudioDirector.Spot.Right,
+            GnomeStudioDirector.Spot.Back,
+            GnomeStudioDirector.Spot.Left
+        };
+
+        public override bool RequiresConstantRepaint()
+        {
+            return ((GnomeStudioDirector)target).orbiting;
+        }
+
         public override void OnInspectorGUI()
         {
             var director = (GnomeStudioDirector)target;
             serializedObject.Update();
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("studioCamera"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("follow"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("subject"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("pickMode"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("lookAtFollow"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("rackFocus"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("closestHysteresis"));
-            EditorGUILayout.Space(6f);
+            serializedObject.ApplyModifiedProperties();
+            EditorGUILayout.Space(8f);
 
-            var names = CameraNames(director);
-            var index = Mathf.Clamp(director.activeCamera, 0, Mathf.Max(0, names.Length - 1));
-            EditorGUI.BeginChangeCheck();
-            index = EditorGUILayout.Popup(new GUIContent("Active camera", "Manual pick. Also used as the starting camera."), index, names);
-            if (EditorGUI.EndChangeCheck())
-            {
-                Undo.RecordObject(director, "Active camera");
-                director.pickMode = GnomeStudioDirector.PickMode.Manual;
-                director.SetLiveIndex(index);
-                EditorUtility.SetDirty(director);
-            }
+            EditorGUILayout.LabelField("Environment", EditorStyles.boldLabel);
+            serializedObject.Update();
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("environmentLight"));
+            serializedObject.ApplyModifiedProperties();
+            EditorGUILayout.Space(8f);
 
-            EditorGUILayout.Space(4f);
-            EditorGUILayout.LabelField("Switch camera", EditorStyles.boldLabel);
-            var row = 0;
+            EditorGUILayout.LabelField("Orbit", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "One Main Camera. The four spots snap around the subject. Orbit, Distance, Height, and Daylight run as one loop when you press Play orbit.",
+                MessageType.Info);
+
             EditorGUILayout.BeginHorizontal();
-            for (var i = 0; i < director.cameras.Count; i++)
+            for (var i = 0; i < Spots.Length; i++)
             {
-                var cam = director.cameras[i];
-                if (cam == null)
-                    continue;
-                if (row > 0 && row % 3 == 0)
-                {
-                    EditorGUILayout.EndHorizontal();
-                    EditorGUILayout.BeginHorizontal();
-                }
-
-                var live = director.LiveCamera == cam;
+                var s = Spots[i];
+                var live = director.spot == s && Mathf.Abs(Mathf.DeltaAngle(director.orbit, GnomeStudioDirector.OrbitOf(s))) < 8f;
                 var color = GUI.backgroundColor;
                 if (live)
                     GUI.backgroundColor = new Color(0.55f, 0.85f, 1f);
-                if (GUILayout.Button(ShortName(cam.name), GUILayout.Height(24f)))
+                if (GUILayout.Button(s.ToString(), GUILayout.Height(26f)))
                 {
-                    Undo.RecordObject(director, "Active camera");
-                    director.pickMode = GnomeStudioDirector.PickMode.Manual;
-                    director.SetLive(cam);
+                    Undo.RecordObject(director, "Orbit spot");
+                    director.SetSpot(s);
                     EditorUtility.SetDirty(director);
                 }
 
                 GUI.backgroundColor = color;
-                row++;
             }
 
             EditorGUILayout.EndHorizontal();
 
-            EditorGUILayout.Space(6f);
-            if (GUILayout.Button("Use closest camera to CameraFollow"))
+            serializedObject.Update();
+            EditorGUI.BeginChangeCheck();
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("orbit"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("distance"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("height"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("daylight"));
+            if (EditorGUI.EndChangeCheck())
             {
-                Undo.RecordObject(director, "Closest camera");
-                director.pickMode = GnomeStudioDirector.PickMode.ClosestToFollow;
+                serializedObject.ApplyModifiedProperties();
+                director.SyncSpotFromOrbit();
                 director.Apply();
                 EditorUtility.SetDirty(director);
             }
 
             EditorGUILayout.Space(10f);
-            EditorGUILayout.LabelField("Studio camera Timeline", EditorStyles.boldLabel);
-            var preview = director.GetComponent<GnomeCinematicPreview>();
-            if (preview != null)
-            {
-                EditorGUILayout.HelpBox(
-                    "Play Mode runs the Timeline on the Studio Cameras (Main, CloseUp, ThreeQuarter, and the rest). CameraFollow animates from body to face. Open the Timeline window to retiming Activation tracks.",
-                    MessageType.Info);
-                EditorGUILayout.BeginHorizontal();
-                if (GUILayout.Button("Play cinematic", GUILayout.Height(26f)))
-                {
-                    if (!Application.isPlaying)
-                        EditorApplication.EnterPlaymode();
-                    else
-                        preview.PlayPreview();
-                }
-
-                if (GUILayout.Button("Stop", GUILayout.Height(26f)))
-                    preview.StopPreview();
-                EditorGUILayout.EndHorizontal();
-            }
-
+            EditorGUILayout.LabelField("Cinematic", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "Play orbit runs one loop: Orbit, Distance, Height, and Daylight all slide together. Stop freezes the sliders where they are.",
+                MessageType.Info);
+            serializedObject.Update();
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("orbitSpeed"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("orbitOnPlay"));
             serializedObject.ApplyModifiedProperties();
-            if (GUI.changed && !director.cinematicActive)
-                director.Apply();
-        }
 
-        static string[] CameraNames(GnomeStudioDirector director)
-        {
-            if (director.cameras == null || director.cameras.Count == 0)
-                return new[] { "(none)" };
-            var names = new string[director.cameras.Count];
-            for (var i = 0; i < director.cameras.Count; i++)
+            EditorGUILayout.BeginHorizontal();
+            var playColor = GUI.backgroundColor;
+            if (director.orbiting)
+                GUI.backgroundColor = new Color(0.55f, 0.85f, 1f);
+            if (GUILayout.Button(director.orbiting ? "Orbiting…" : "Play orbit", GUILayout.Height(26f)))
             {
-                var cam = director.cameras[i];
-                names[i] = cam != null ? cam.name : "(missing)";
+                Undo.RecordObject(director, "Play orbit");
+                director.StartOrbit();
+                serializedObject.FindProperty("orbiting").boolValue = true;
+                serializedObject.ApplyModifiedProperties();
+                EditorUtility.SetDirty(director);
             }
 
-            return names;
-        }
+            GUI.backgroundColor = playColor;
+            if (GUILayout.Button("Stop", GUILayout.Height(26f)))
+            {
+                Undo.RecordObject(director, "Stop orbit");
+                director.StopOrbit();
+                serializedObject.FindProperty("orbiting").boolValue = false;
+                serializedObject.ApplyModifiedProperties();
+                EditorUtility.SetDirty(director);
+            }
 
-        static string ShortName(string name)
-        {
-            if (string.IsNullOrEmpty(name))
-                return "Camera";
-            return name.StartsWith("Cam ") ? name.Substring(4) : name;
+            EditorGUILayout.EndHorizontal();
         }
     }
 }
