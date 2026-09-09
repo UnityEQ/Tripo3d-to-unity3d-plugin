@@ -2,15 +2,17 @@
 
 Run from the project root. Replace the quoted placeholders with the job's paths. `blender.exe` means the installed Blender executable; it need not be on PATH.
 
-## Initial bind only
+## Legacy proportional bind (not the fitted production path)
 
 ```text
 blender.exe --background --factory-startup --python Tools/Blender/biped_humanoid_v1/run.py -- --glb "INPUT.glb" --out "WORK_DIRECTORY" --slug "CHARACTER" --schema "Biped Humanoid Rig v1 - Reference.json"
 ```
 
+For a production job, import and fit landmarks first, then call the existing helper functions on that fitted skeleton as specified in the standard. The command above has no landmark-fit stage and is retained for legacy diagnostics; do not spend an automatic bind attempt on known misplaced joints.
+
 This resets the headless scene, imports the GLB, **proportionally scales the elf skeleton** to mesh height, then heat-binds and `refine_weights` (opposite-limb / finger isolation, hinge-band spread, four-influence elf prune). That proportional bind is an import + naming seed, **not** the fitted character. Heat often fails here because elbows/knees missed this mesh. Fit landmarks on this mesh (§2 of the standard), then call `heat_bind` / `refine_weights` again. Do not write a replacement pipeline because the seed heat-failed.
 
-It does **not** author the four gameplay clips or finish posed joint-band painting (§4b). Use `Temp/tripo-ai-jobs/<id>/` (this repo) or another non-Unity workspace — never the Unity Editor `Temp/` folder. Review material graphs before accepting the helper's flattening behavior.
+It does **not** author the four gameplay clips or finish posed joint-band painting (§4b). Use `work/TripoRigJobs/<id>/` (persistent, outside Unity Temp) or another non-Unity workspace — never the Unity Editor `Temp/` folder. Review material graphs before accepting the helper's flattening behavior.
 
 ## Inspect or validate a saved checkpoint
 
